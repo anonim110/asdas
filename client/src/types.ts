@@ -1,0 +1,135 @@
+export interface AuthUser {
+  id: string;
+  email: string;
+  username: string;
+  displayName: string;
+  bio: string | null;
+  link: string | null;
+  location: string | null;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+  createdAt: string;
+  hasPassword: boolean;
+  googleLinked: boolean;
+}
+
+export interface UserSummary {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  bio?: string | null;
+  lastSeenAt?: string;
+  isFollowing?: boolean;
+}
+
+export type MediaType = 'IMAGE' | 'VIDEO' | 'GIF';
+
+export interface Media {
+  id: string;
+  url: string;
+  type: MediaType;
+  width: number | null;
+  height: number | null;
+}
+
+export interface PostCounts {
+  likes: number;
+  reposts: number;
+  replies: number;
+  quotes: number;
+  views: number;
+}
+
+export interface ViewerState {
+  liked: boolean;
+  bookmarked: boolean;
+  reposted: boolean;
+}
+
+export interface Post {
+  id: string;
+  content: string | null;
+  createdAt: string;
+  updatedAt: string;
+  editedAt: string | null;
+  parentId: string | null;
+  author: UserSummary;
+  media: Media[];
+  hashtags: string[];
+  counts: PostCounts;
+  viewer: ViewerState;
+  repostOf: Post | null;
+  quotedPost: Post | null;
+  pinned?: boolean;
+}
+
+export interface Relationship {
+  isFollowing: boolean;
+  isFollowedBy: boolean;
+  isBlocked: boolean;
+  isMuted: boolean;
+  isSelf: boolean;
+}
+
+export interface Profile {
+  id: string;
+  username: string;
+  displayName: string;
+  bio: string | null;
+  link: string | null;
+  location: string | null;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+  lastSeenAt?: string;
+  createdAt: string;
+  pinnedPostId: string | null;
+  counts: { followers: number; following: number; posts: number };
+  relationship: Relationship;
+}
+
+export type NotificationType = 'LIKE' | 'REPOST' | 'QUOTE' | 'FOLLOW' | 'MENTION' | 'REPLY';
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  read: boolean;
+  createdAt: string;
+  actor: UserSummary;
+  post: { id: string; content: string | null; author: UserSummary } | null;
+}
+
+export interface Conversation {
+  id: string;
+  other: UserSummary;
+  lastMessage: {
+    id: string;
+    content: string | null;
+    imageUrl?: string | null;
+    senderId: string;
+    createdAt: string;
+    readAt: string | null;
+  } | null;
+  unread: number;
+  updatedAt: string;
+}
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  content: string | null;
+  imageUrl: string | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface Trend {
+  tag: string;
+  count: number;
+}
+
+export interface CursorPage<T> {
+  items: T[];
+  nextCursor: string | null;
+}

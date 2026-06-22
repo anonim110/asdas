@@ -1,0 +1,282 @@
+// Prisma schema for the social network.
+// Run `npm run prisma:migrate` to create/apply migrations.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // For an instant, zero-install local run this is set to "sqlite".
+  // To use PostgreSQL (the production target) switch this back to
+  // "postgresql" and point DATABASE_URL at your Postgres instance.
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────────── Users ─────────────────────────────
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  username      String   @unique
+  displayName   String
+  passwordHash  String?
+  googleId      String?  @unique
+  emailVerified Boolean  @default(false)
+  bio           String? // max length enforced by validation (160)
+  link          String?
+  location      String?
+  avatarUrl     String?
+  bannerUrl     String?
+  lastSeenAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // A pinned post shown at the top of the profile
+  pinnedPostId String? @unique
+  pinnedPost   Post?   @relation("PinnedPost", fields: [pinnedPostId], references: [id], onDelete: SetNull)
+
+  posts         Post[]               @relation("AuthorPosts")
+  likes         Like[]
+  bookmarks     Bookmark[]
+  refreshTokens RefreshToken[]
+  resetTokens   PasswordResetToken[]
+
+  // Follow graph
+  following Follow[] @relation("Follower")
+  followers Follow[] @relation("Following")
+
+  // Block / mute graph
+  blocking  Block[] @relation("Blocker")
+  blockedBy Block[] @relation("Blocked")
+  muting    Mute[]  @relation("Muter")
+  mutedBy   Mute[]  @relation("Muted")
+
+  // Notifications
+  notificationsReceived Notification[] @relation("NotificationRecipient")
+  notificationsActed    Notification[] @relation("NotificationActor")
+
+  // Mentions
+  mentions Mention[]
+
+  // Direct messages
+  conversationsA Conversation[] @relation("ConversationUserA")
+  conversationsB Conversation[] @relation("ConversationUserB")
+  messagesSent   Message[]      @relation("MessageSender")
+
+  @@index([username])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ───────────────────────────── Posts ─────────────────────────────
+
+model Post {
+  id        String   @id @default(cuid())
+  content   String? // max length enforced by validation (280)
+  authorId  String
+  author    User     @relation("AuthorPosts", fields: [authorId], references: [id], onDelete: Cascade)
+  viewCount Int      @default(0)
+  editedAt  DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Reply: points at the post this is a reply to
+  parentId String?
+  parent   Post?   @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Post[]  @relation("Replies")
+
+  // Repost (retweet): a content-less post referencing the original
+  repostOfId String?
+  repostOf   Post?   @relation("Reposts", fields: [repostOfId], references: [id], onDelete: Cascade)
+  reposts    Post[]  @relation("Reposts")
+
+  // Quote: content + reference to the quoted post
+  quotedPostId String?
+  quotedPost   Post?   @relation("Quotes", fields: [quotedPostId], references: [id], onDelete: SetNull)
+  quotes       Post[]  @relation("Quotes")
+
+  media     Media[]
+  likes     Like[]
+  bookmarks Bookmark[]
+  hashtags  PostHashtag[]
+  mentions  Mention[]
+
+  pinnedBy      User?          @relation("PinnedPost")
+  notifications Notification[]
+
+  @@index([authorId, createdAt])
+  @@index([parentId])
+  @@index([repostOfId])
+  @@index([createdAt])
+}
+
+model Media {
+  id     String @id @default(cuid())
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  url    String
+  // One of: IMAGE | VIDEO | GIF (see src/types/enums.ts).
+  type   String
+  width  Int?
+  height Int?
+
+  @@index([postId])
+}
+
+// ───────────────────────── Engagement ─────────────────────────
+
+model Like {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, postId])
+  @@index([postId])
+}
+
+model Bookmark {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, postId])
+  @@index([userId, createdAt])
+}
+
+model Follow {
+  followerId  String
+  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@id([followerId, followingId])
+  @@index([followingId])
+}
+
+model Block {
+  blockerId String
+  blocker   User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId])
+}
+
+model Mute {
+  muterId   String
+  muter     User     @relation("Muter", fields: [muterId], references: [id], onDelete: Cascade)
+  mutedId   String
+  muted     User     @relation("Muted", fields: [mutedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([muterId, mutedId])
+}
+
+// ───────────────────────── Hashtags ─────────────────────────
+
+model Hashtag {
+  id    String        @id @default(cuid())
+  tag   String        @unique // stored lowercase, without '#'
+  posts PostHashtag[]
+}
+
+model PostHashtag {
+  postId    String
+  post      Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  hashtagId String
+  hashtag   Hashtag @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, hashtagId])
+  @@index([hashtagId])
+}
+
+model Mention {
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([postId, userId])
+  @@index([userId])
+}
+
+// ─────────────────────── Notifications ───────────────────────
+
+model Notification {
+  id          String   @id @default(cuid())
+  // One of: LIKE | REPOST | QUOTE | FOLLOW | MENTION | REPLY (see src/types/enums.ts).
+  type        String
+  recipientId String
+  recipient   User     @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actorId     String
+  actor       User     @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  postId      String?
+  post        Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([recipientId, createdAt])
+}
+
+// ──────────────────── Direct messages ────────────────────
+
+model Conversation {
+  id        String   @id @default(cuid())
+  // A 1:1 conversation between two users. userAId < userBId is enforced
+  // in code so each pair maps to exactly one conversation.
+  userAId   String
+  userA     User     @relation("ConversationUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userBId   String
+  userB     User     @relation("ConversationUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages Message[]
+
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  content        String? // optional when an image is attached; max length enforced by validation (2000)
+  imageUrl       String?
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}

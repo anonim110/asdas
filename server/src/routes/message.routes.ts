@@ -1,0 +1,26 @@
+import { Router } from 'express';
+import * as message from '../controllers/message.controller';
+import { asyncHandler } from '../utils/asyncHandler';
+import { requireAuth } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import { upload } from '../middleware/upload';
+import { writeLimiter } from '../middleware/rateLimit';
+import { startConversationSchema, sendMessageSchema, cursorQuerySchema } from '../validators/schemas';
+
+const router = Router();
+
+router.use(requireAuth);
+router.get('/', asyncHandler(message.listConversations));
+router.post('/', validate({ body: startConversationSchema }), asyncHandler(message.startConversation));
+router.get('/:id', asyncHandler(message.getConversation));
+router.get('/:id/messages', validate({ query: cursorQuerySchema }), asyncHandler(message.getMessages));
+router.post(
+  '/:id/messages',
+  writeLimiter,
+  upload.single('image'),
+  validate({ body: sendMessageSchema }),
+  asyncHandler(message.sendMessage),
+);
+router.post('/:id/read', asyncHandler(message.markRead));
+
+export default router;
