@@ -12,10 +12,10 @@ services:
     healthCheckPath: /api/health
     buildCommand: >-
       cd ../client &&
-      npm ci &&
+      npm ci --include=dev &&
       npm run build &&
       cd ../server &&
-      npm ci &&
+      npm ci --include=dev &&
       sed -i 's/provider = "sqlite"/provider = "postgresql"/' prisma/schema.prisma &&
       npx prisma generate &&
       npx prisma db push --accept-data-loss &&
