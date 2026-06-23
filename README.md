@@ -294,10 +294,30 @@ and no engine-specific column types are used).
 
 ---
 
+## Permanent photo storage
+
+Local development needs no extra setup: uploads are saved under
+`server/uploads`.
+
+Render's filesystem is temporary, so production uploads should use Cloudinary:
+
+1. Create a Cloudinary account and open the API Keys page.
+2. In the Render service environment, set `CLOUDINARY_CLOUD_NAME`,
+   `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET`.
+3. Redeploy the backend.
+
+`CLOUDINARY_FOLDER=murmur` is optional. After the three credentials are set,
+new post media, avatars, banners, and chat images are uploaded to Cloudinary
+automatically. Existing local files are left unchanged.
+
+---
+
 ## 📝 Notes & possible extensions
 
-- Media is stored on local disk under `server/uploads`. The `publicUrl()` helper
-  in `server/src/middleware/upload.ts` is the single place to swap in S3.
+- Media is stored on local disk under `server/uploads` during development.
+  For production, set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and
+  `CLOUDINARY_API_SECRET`; new post media, avatars, banners, and chat images
+  will then be stored permanently in Cloudinary.
 - Email delivery for password resets is intentionally stubbed (token returned in
   dev). Wire up a provider (e.g. SES/Resend) in `auth.service.ts`.
 - The ranking algorithm in `feed.service.ts` is deliberately simple

@@ -30,11 +30,14 @@ export function Avatar({ user, size = 'md', linkable = true, showPresence }: Pro
     <img
       src={user.avatarUrl}
       alt={user.displayName}
-      className={`${sizes[size]} rounded-full object-cover bg-gray-200 dark:bg-gray-800`}
+      loading="lazy"
+      decoding="async"
+      className={`${sizes[size]} rounded-full bg-slate-200 object-cover ring-2 ring-white dark:bg-slate-800 dark:ring-[#07080f]`}
     />
   ) : (
     <div
-      className={`${sizes[size]} flex items-center justify-center rounded-full bg-brand text-white font-bold`}
+      aria-label={user.displayName}
+      className={`${sizes[size]} flex select-none items-center justify-center rounded-full bg-gradient-to-br from-brand via-brand-soft to-accent font-bold text-white ring-2 ring-white dark:ring-[#07080f]`}
     >
       {initial}
     </div>

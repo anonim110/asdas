@@ -79,12 +79,13 @@ export function Settings() {
       )}
 
       <form onSubmit={saveProfile} className="card pb-6">
-        <div className="relative h-40 bg-gray-200 dark:bg-gray-800">
+        <div className="relative h-40 bg-gradient-to-br from-rose-100 via-white to-blue-100 dark:from-white/[0.08] dark:via-white/[0.03] dark:to-blue-500/10">
           {bannerPreview && <img src={bannerPreview} className="h-full w-full object-cover" />}
           <button
             type="button"
             onClick={() => bannerInput.current?.click()}
-            className="absolute inset-0 m-auto flex h-12 w-12 items-center justify-center rounded-full bg-black/50 text-white"
+            className="absolute inset-0 m-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-950/60 text-white backdrop-blur transition hover:bg-slate-950/75"
+            aria-label="Change banner"
           >
             <Camera size={20} />
           </button>
@@ -105,13 +106,14 @@ export function Settings() {
 
         <div className="px-4">
           <div className="relative -mt-12 mb-4 h-24 w-24">
-            <div className="h-24 w-24 overflow-hidden rounded-full border-4 border-white bg-gray-200 dark:border-black dark:bg-gray-800">
+            <div className="h-24 w-24 overflow-hidden rounded-full border-4 border-white bg-slate-200 dark:border-[#07080f] dark:bg-slate-800">
               {avatarPreview && <img src={avatarPreview} className="h-full w-full object-cover" />}
             </div>
             <button
               type="button"
               onClick={() => avatarInput.current?.click()}
-              className="absolute inset-0 m-auto flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white"
+              className="absolute inset-0 m-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-950/60 text-white backdrop-blur transition hover:bg-slate-950/75"
+              aria-label="Change avatar"
             >
               <Camera size={18} />
             </button>

@@ -17,9 +17,11 @@ import { useRealtime } from '../store/realtime';
 import { toast } from '../store/toast';
 import { Avatar } from './Avatar';
 import { Modal } from './Modal';
+import { Dismiss } from './Dismiss';
 import { PostComposer } from './PostComposer';
 import { ThemeToggle } from './ThemeToggle';
 import { RightSidebar } from './RightSidebar';
+import { ScrollToTop } from './ScrollToTop';
 import { RealtimeBridge } from './RealtimeBridge';
 
 interface NavItem {
@@ -53,37 +55,42 @@ export function Layout() {
   ];
 
   return (
-    <div className="mx-auto flex max-w-7xl">
+    <div className="mx-auto flex max-w-[1400px] sm:px-3 xl:px-6">
       <RealtimeBridge />
 
       {/* Left navigation (desktop) */}
-      <header className="sticky top-0 hidden h-screen shrink-0 flex-col justify-between px-2 py-3 sm:flex xl:w-[275px]">
+      <header className="sticky top-0 hidden h-screen shrink-0 flex-col justify-between px-2 py-4 sm:flex xl:w-[285px]">
         <div className="flex flex-col items-center xl:items-start">
           <NavLink
             to="/home"
-            className="mb-2 flex items-center gap-2 rounded-full p-3 text-brand transition hover:bg-brand/10 active:scale-95"
+            className="mb-3 flex min-h-12 items-center gap-3 rounded-full p-2.5 text-brand transition duration-200 hover:bg-white/80 hover:shadow-soft active:scale-95 dark:hover:bg-white/[0.06]"
+            aria-label="Murmur home"
           >
-            <Feather size={28} />
-            <span className="hidden bg-gradient-to-r from-brand to-brand-soft bg-clip-text text-2xl font-extrabold tracking-tight text-transparent xl:inline">
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand text-white shadow-lift">
+              <Feather size={23} />
+            </span>
+            <span className="hidden bg-gradient-to-r from-brand via-brand-soft to-accent bg-clip-text text-2xl font-extrabold text-transparent xl:inline">
               Murmur
             </span>
           </NavLink>
 
-          <nav className="flex flex-col gap-1">
+          <nav className="flex w-full flex-col gap-1.5">
             {items.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `flex items-center gap-4 rounded-full p-3 text-xl transition hover:bg-gray-100 dark:hover:bg-gray-900 ${
-                    isActive ? 'font-bold' : ''
+                  `group flex min-h-12 items-center gap-4 rounded-full px-3 py-2.5 text-lg transition duration-200 xl:w-full ${
+                    isActive
+                      ? 'bg-white font-extrabold text-brand shadow-soft dark:bg-white/[0.08] dark:text-rose-300'
+                      : 'text-slate-700 hover:bg-white/75 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
                   }`
                 }
               >
                 <span className="relative">
-                  <item.icon size={26} />
+                  <item.icon size={25} strokeWidth={2.2} />
                   {!!item.badge && item.badge > 0 && (
-                    <span className="absolute -right-2 -top-1 min-w-[18px] rounded-full bg-brand px-1 text-center text-xs font-bold text-white">
+                    <span className="absolute -right-2 -top-1 min-w-[18px] rounded-full bg-accent px-1 text-center text-xs font-bold text-white shadow-sm">
                       {item.badge > 99 ? '99+' : item.badge}
                     </span>
                   )}
@@ -94,7 +101,7 @@ export function Layout() {
             <ThemeToggle withLabel />
           </nav>
 
-          <button onClick={() => setCompose(true)} className="btn-primary mt-3 w-12 xl:w-full xl:py-3">
+          <button onClick={() => setCompose(true)} className="btn-primary mt-4 w-12 xl:w-full xl:py-3">
             <Feather size={20} className="xl:hidden" />
             <span className="hidden xl:inline">Post</span>
           </button>
@@ -104,7 +111,7 @@ export function Layout() {
         <div className="relative">
           <button
             onClick={() => setMenu((o) => !o)}
-            className="flex w-full items-center gap-2 rounded-full p-3 hover:bg-gray-100 dark:hover:bg-gray-900"
+            className="flex min-h-14 w-full items-center gap-3 rounded-2xl p-2.5 transition duration-200 hover:bg-white/80 hover:shadow-soft dark:hover:bg-white/[0.06]"
           >
             <Avatar user={user} linkable={false} />
             <div className="hidden min-w-0 flex-1 text-left xl:block">
@@ -113,15 +120,16 @@ export function Layout() {
             </div>
             <MoreHorizontal className="hidden xl:block" size={18} />
           </button>
+          {menu && <Dismiss onDismiss={() => setMenu(false)} />}
           {menu && (
-            <div className="absolute bottom-16 w-60 overflow-hidden rounded-2xl border border-gray-200 bg-white py-2 shadow-xl dark:border-gray-800 dark:bg-black">
+            <div className="panel absolute bottom-16 z-10 w-64 overflow-hidden py-2">
               <button
                 onClick={async () => {
                   await logout();
                   toast('Signed out', 'info');
                   navigate('/login');
                 }}
-                className="flex w-full items-center gap-2 px-4 py-3 font-bold hover:bg-gray-100 dark:hover:bg-gray-900"
+                className="flex w-full items-center gap-2 px-4 py-3 font-bold transition hover:bg-rose-50 dark:hover:bg-white/[0.07]"
               >
                 <LogOut size={18} /> Log out @{user.username}
               </button>
@@ -132,7 +140,7 @@ export function Layout() {
 
       {/* Main content — keyed by route for a subtle fade on navigation */}
       <main
-        className={`min-h-screen w-full border-x border-gray-200 dark:border-gray-800 ${
+        className={`min-h-screen w-full border-x border-slate-200/80 bg-white/70 shadow-soft backdrop-blur dark:border-white/10 dark:bg-black/35 ${
           isMessagesRoute ? 'max-w-[920px]' : 'max-w-[600px]'
         }`}
       >
@@ -145,17 +153,34 @@ export function Layout() {
 
       {/* Mobile bottom navigation */}
       {!isChatRoute && (
-        <nav className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t border-gray-200 bg-white/90 py-2 backdrop-blur sm:hidden dark:border-gray-800 dark:bg-black/90">
+        <nav className="mobile-safe-pad fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 border-t border-slate-200/80 bg-white/95 px-1 pt-1 shadow-[0_-16px_40px_-30px_rgba(15,23,42,0.45)] backdrop-blur-xl sm:hidden dark:border-white/10 dark:bg-[#07080f]/95">
           {items.slice(0, 4).map((item) => (
-            <NavLink key={item.to} to={item.to} className="relative p-2">
-              <item.icon size={26} />
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                `relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-bold transition duration-200 ${
+                  isActive ? 'bg-rose-50 text-brand dark:bg-white/[0.07] dark:text-rose-300' : 'text-slate-500'
+                }`
+              }
+            >
+              <item.icon size={23} />
               {!!item.badge && item.badge > 0 && (
-                <span className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full bg-brand" />
+                <span className="absolute right-5 top-2 h-2.5 w-2.5 rounded-full bg-accent ring-2 ring-white dark:ring-[#07080f]" />
               )}
+              <span className="max-w-full truncate px-1">{item.label === 'Notifications' ? 'Alerts' : item.label}</span>
             </NavLink>
           ))}
-          <NavLink to={`/${user.username}`} className="p-1">
+          <NavLink
+            to={`/${user.username}`}
+            className={({ isActive }) =>
+              `flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-2xl transition duration-200 ${
+                isActive ? 'bg-rose-50 dark:bg-white/[0.07]' : ''
+              }`
+            }
+          >
             <Avatar user={user} size="sm" linkable={false} />
+            <span className="text-[11px] font-bold text-slate-500">Profile</span>
           </NavLink>
         </nav>
       )}
@@ -164,11 +189,14 @@ export function Layout() {
       {!isChatRoute && (
         <button
           onClick={() => setCompose(true)}
-          className="btn-primary fixed bottom-16 right-4 z-40 h-14 w-14 rounded-full sm:hidden"
+          className="btn-primary fixed bottom-20 right-4 z-40 h-14 w-14 rounded-full p-0 sm:hidden"
+          aria-label="Create post"
         >
           <Feather size={22} />
         </button>
       )}
+
+      {!isChatRoute && <ScrollToTop />}
 
       <Modal open={compose} onClose={() => setCompose(false)} title="">
         <PostComposer autoFocus onPosted={() => setCompose(false)} />

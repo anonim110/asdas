@@ -34,13 +34,13 @@ export function Search() {
           }}
           className="px-4 pb-2"
         >
-          <div className="flex items-center gap-2 rounded-full bg-gray-100 px-4 py-2 dark:bg-gray-900">
-            <SearchIcon size={18} className="text-gray-500" />
+          <div className="flex min-h-12 items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/85 px-4 py-2.5 shadow-sm transition focus-within:border-brand/40 focus-within:ring-4 focus-within:ring-brand/10 dark:border-white/10 dark:bg-white/[0.05]">
+            <SearchIcon size={18} className="text-slate-500" />
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Search"
-              className="w-full bg-transparent outline-none"
+              className="w-full bg-transparent outline-none placeholder:text-slate-400"
             />
           </div>
         </form>
@@ -49,16 +49,16 @@ export function Search() {
             <button
               key={t}
               onClick={() => setTab(t)}
-              className="relative flex-1 py-3 text-center font-bold capitalize hover:bg-gray-100 dark:hover:bg-gray-900"
+              className="relative flex-1 py-3 text-center font-bold capitalize transition duration-200 hover:bg-rose-50 dark:hover:bg-white/[0.05]"
             >
-              <span className={tab === t ? '' : 'text-gray-500'}>{t}</span>
+              <span className={tab === t ? 'text-slate-950 dark:text-white' : 'text-slate-500 dark:text-slate-400'}>{t}</span>
               {tab === t && <span className="absolute bottom-0 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-brand" />}
             </button>
           ))}
         </div>
       </PageHeader>
 
-      {!q && <p className="p-8 text-center text-gray-500">Search for people, posts and hashtags.</p>}
+      {!q && <p className="p-8 text-center text-slate-500 dark:text-slate-400">Search for people, posts and hashtags.</p>}
 
       {q && tab === 'people' && (
         peopleQuery.isLoading ? (
@@ -66,7 +66,7 @@ export function Search() {
         ) : peopleQuery.data?.length ? (
           peopleQuery.data.map((u) => <UserListItem key={u.id} user={u} />)
         ) : (
-          <p className="p-8 text-center text-gray-500">No people found.</p>
+          <p className="p-8 text-center text-slate-500 dark:text-slate-400">No people found.</p>
         )
       )}
 

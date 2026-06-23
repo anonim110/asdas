@@ -19,7 +19,7 @@ export function Home() {
         </div>
       </PageHeader>
 
-      <div className="card px-4 py-3">
+      <div className="card px-4 py-4">
         <PostComposer />
       </div>
 
@@ -59,10 +59,10 @@ function TabButton({ active, onClick, label }: { active: boolean; onClick: () =>
   return (
     <button
       onClick={onClick}
-      className="relative flex-1 py-4 text-center font-bold transition hover:bg-gray-100 dark:hover:bg-gray-900"
+      className="relative flex-1 py-4 text-center font-bold transition duration-200 hover:bg-rose-50 dark:hover:bg-white/[0.05]"
     >
-      <span className={active ? '' : 'text-gray-500'}>{label}</span>
-      {active && <span className="absolute bottom-0 left-1/2 h-1 w-14 -translate-x-1/2 rounded-full bg-brand" />}
+      <span className={active ? 'text-slate-950 dark:text-white' : 'text-slate-500 dark:text-slate-400'}>{label}</span>
+      {active && <span className="absolute bottom-0 left-1/2 h-1 w-14 -translate-x-1/2 rounded-full bg-brand shadow-sm shadow-brand/30" />}
     </button>
   );
 }

@@ -106,21 +106,22 @@ export function PostComposer({
           onChange={(e) => setText(e.target.value)}
           placeholder={placeholder}
           rows={compact ? 2 : 3}
-          className="w-full resize-none bg-transparent text-lg outline-none placeholder:text-gray-500"
+          className="w-full resize-none bg-transparent text-[17px] leading-7 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
         />
 
         {files.length > 0 && (
           <div className={`grid gap-2 ${files.length > 1 ? 'grid-cols-2' : 'grid-cols-1'} mb-2`}>
             {files.map((f, i) => (
-              <div key={i} className="relative">
+              <div key={i} className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/[0.04]">
                 {f.file.type.startsWith('video/') ? (
-                  <video src={f.preview} className="max-h-64 w-full rounded-2xl object-cover" controls />
+                  <video src={f.preview} className="max-h-64 w-full object-cover" controls />
                 ) : (
-                  <img src={f.preview} className="max-h-64 w-full rounded-2xl object-cover" />
+                  <img src={f.preview} className="max-h-64 w-full object-cover" />
                 )}
                 <button
                   onClick={() => removeFile(i)}
-                  className="absolute right-2 top-2 rounded-full bg-black/70 p-1 text-white"
+                  className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-slate-950/75 text-white backdrop-blur transition hover:bg-slate-950"
+                  aria-label="Remove media"
                 >
                   <X size={16} />
                 </button>
@@ -129,16 +130,17 @@ export function PostComposer({
           </div>
         )}
 
-        {error && <p className="mb-2 text-sm text-red-500">{error}</p>}
+        {error && <p className="mb-2 rounded-2xl bg-red-50 px-3 py-2 text-sm font-medium text-red-600 dark:bg-red-500/10 dark:text-red-300">{error}</p>}
 
-        <div className="flex items-center justify-between border-t border-gray-100 pt-2 dark:border-gray-900">
+        <div className="flex items-center justify-between border-t border-slate-100 pt-3 dark:border-white/10">
           <div className="flex items-center">
             <button
               type="button"
               onClick={() => fileInput.current?.click()}
               disabled={files.length >= MAX_FILES}
-              className="rounded-full p-2 text-brand hover:bg-brand/10 disabled:opacity-40"
+              className="icon-button text-brand disabled:cursor-not-allowed disabled:opacity-40"
               title="Add media"
+              aria-label="Add media"
             >
               <ImagePlus size={20} />
             </button>
@@ -146,8 +148,9 @@ export function PostComposer({
               <button
                 type="button"
                 onClick={() => setEmojiOpen((o) => !o)}
-                className="rounded-full p-2 text-brand hover:bg-brand/10"
+                className="icon-button text-brand"
                 title="Add emoji"
+                aria-label="Add emoji"
               >
                 <Smile size={20} />
               </button>
@@ -167,7 +170,7 @@ export function PostComposer({
 
           <div className="flex items-center gap-3">
             {text.length > 0 && <ProgressRing value={text.length} max={MAX} />}
-            <button onClick={submit} disabled={!canSubmit} className="btn-primary">
+            <button onClick={submit} disabled={!canSubmit} className="btn-primary min-w-24">
               {parentId ? 'Reply' : quotedPostId ? 'Quote' : 'Post'}
             </button>
           </div>

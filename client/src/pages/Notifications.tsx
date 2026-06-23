@@ -1,13 +1,14 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { Heart, Repeat2, UserPlus, AtSign, MessageCircle, Quote } from 'lucide-react';
+import { Heart, Repeat2, UserPlus, AtSign, MessageCircle, Quote, Bell } from 'lucide-react';
 import { api } from '../lib/api';
 import { useRealtime } from '../store/realtime';
 import { useIntersection } from '../hooks/useIntersection';
 import { relativeTime } from '../lib/format';
 import { PageHeader } from '../components/PageHeader';
 import { Avatar } from '../components/Avatar';
+import { EmptyState } from '../components/EmptyState';
 import { Spinner } from '../components/Spinner';
 import type { Notification, NotificationType } from '../types';
 
@@ -62,7 +63,11 @@ export function Notifications() {
       {query.isLoading ? (
         <Spinner />
       ) : items.length === 0 ? (
-        <p className="p-8 text-center text-gray-500">Nothing to see here yet.</p>
+        <EmptyState
+          icon={Bell}
+          title="No notifications yet"
+          subtitle="When people like, reply to, repost or follow you, it'll show up here."
+        />
       ) : (
         <>
           {items.map((n) => {
@@ -73,7 +78,7 @@ export function Notifications() {
                 key={n.id}
                 to={href}
                 className={`flex gap-3 px-4 py-4 transition hover:bg-gray-50 dark:hover:bg-gray-950 ${
-                  n.read ? '' : 'bg-brand/5'
+                  n.read ? '' : 'border-l-2 border-l-brand bg-brand/5'
                 } card`}
               >
                 <Icon className={`mt-1 shrink-0 ${color}`} size={22} />

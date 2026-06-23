@@ -2,11 +2,33 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const clientUrls = required('CLIENT_URL', 'http://localhost:5173')
+function normalizeOrigin(value: string): string {
+  const trimmed = value.trim().replace(/\/+$/, '');
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
+const clientUrls = (
+  process.env.CLIENT_URL ??
+  process.env.RENDER_EXTERNAL_URL ??
+  'http://localhost:5173'
+)
   .split(',')
-  .map((s) => s.trim())
+  .map(normalizeOrigin)
   .filter(Boolean);
-const apiUrl = required('API_URL', 'http://localhost:4000');
+const apiUrl = normalizeOrigin(
+  process.env.API_URL ?? process.env.RENDER_EXTERNAL_URL ?? 'http://localhost:4000',
+);
+const cloudinaryCloudName = process.env.CLOUDINARY_CLOUD_NAME ?? '';
+const cloudinaryApiKey = process.env.CLOUDINARY_API_KEY ?? '';
+const cloudinaryApiSecret = process.env.CLOUDINARY_API_SECRET ?? '';
+const cloudinaryValues = [cloudinaryCloudName, cloudinaryApiKey, cloudinaryApiSecret];
+
+if (cloudinaryValues.some(Boolean) && !cloudinaryValues.every(Boolean)) {
+  throw new Error(
+    'CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET must be set together',
+  );
+}
 
 function required(name: string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
@@ -40,5 +62,13 @@ export const env = {
   upload: {
     dir: process.env.UPLOAD_DIR ?? 'uploads',
     maxBytes: Number(process.env.MAX_UPLOAD_MB ?? 25) * 1024 * 1024,
+  },
+
+  cloudinary: {
+    enabled: cloudinaryValues.every(Boolean),
+    cloudName: cloudinaryCloudName,
+    apiKey: cloudinaryApiKey,
+    apiSecret: cloudinaryApiSecret,
+    folder: process.env.CLOUDINARY_FOLDER ?? 'murmur',
   },
 } as const;

@@ -1,3 +1,4 @@
+import { Bookmark } from 'lucide-react';
 import { api } from '../lib/api';
 import { PageHeader } from '../components/PageHeader';
 import { Feed } from '../components/Feed';
@@ -16,6 +17,7 @@ export function Bookmarks() {
           return { items: data.items, next: data.nextCursor };
         }}
         emptyText="You haven't bookmarked anything yet."
+        emptyIcon={Bookmark}
       />
     </div>
   );

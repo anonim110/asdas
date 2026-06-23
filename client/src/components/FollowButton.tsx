@@ -34,7 +34,7 @@ export function FollowButton({ username, initialFollowing, onChange, small }: Pr
     }
   }
 
-  const size = small ? 'px-4 py-1 text-sm' : 'px-5 py-2';
+  const size = small ? 'min-h-9 px-4 text-sm' : 'min-h-11 px-5';
 
   if (following) {
     return (
@@ -42,10 +42,11 @@ export function FollowButton({ username, initialFollowing, onChange, small }: Pr
         onClick={toggle}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
-        className={`rounded-full border font-bold ${size} ${
+        disabled={busy}
+        className={`rounded-full border font-bold transition duration-200 disabled:opacity-50 ${size} ${
           hover
-            ? 'border-red-300 bg-red-50 text-red-600 dark:border-red-900 dark:bg-red-950'
-            : 'border-gray-300 dark:border-gray-700'
+            ? 'border-red-200 bg-red-50 text-red-600 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300'
+            : 'border-slate-200 bg-white/80 text-slate-800 hover:border-brand/30 hover:bg-rose-50 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-100 dark:hover:bg-white/[0.08]'
         }`}
       >
         {hover ? 'Unfollow' : 'Following'}
@@ -54,7 +55,11 @@ export function FollowButton({ username, initialFollowing, onChange, small }: Pr
   }
 
   return (
-    <button onClick={toggle} className={`rounded-full bg-gray-900 font-bold text-white dark:bg-white dark:text-black ${size}`}>
+    <button
+      onClick={toggle}
+      disabled={busy}
+      className={`rounded-full bg-slate-950 font-bold text-white shadow-sm transition duration-200 hover:bg-brand active:scale-[0.98] disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-rose-100 ${size}`}
+    >
       Follow
     </button>
   );

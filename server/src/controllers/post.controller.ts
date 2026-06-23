@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import * as postService from '../services/post.service';
 import { MediaType } from '../types/enums';
-import { publicUrl } from '../middleware/upload';
+import { storeUploadedFile } from '../middleware/upload';
 import type { MediaInput } from '../services/post.service';
 
 function mediaTypeFromMime(mime: string): MediaType {
@@ -10,13 +10,18 @@ function mediaTypeFromMime(mime: string): MediaType {
   return 'IMAGE';
 }
 
-function filesToMedia(req: Request): MediaInput[] {
+async function filesToMedia(req: Request): Promise<MediaInput[]> {
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
-  return files.map((f) => ({ url: publicUrl(f.filename), type: mediaTypeFromMime(f.mimetype) }));
+  return Promise.all(
+    files.map(async (file) => ({
+      url: await storeUploadedFile(file),
+      type: mediaTypeFromMime(file.mimetype),
+    })),
+  );
 }
 
 export async function create(req: Request, res: Response) {
-  const media = filesToMedia(req);
+  const media = await filesToMedia(req);
   const post = await postService.createPost({
     authorId: req.userId!,
     content: req.body.content,

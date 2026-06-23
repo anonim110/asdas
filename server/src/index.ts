@@ -13,7 +13,7 @@ async function main() {
 
   server.listen(env.port, () => {
     // eslint-disable-next-line no-console
-    console.log(`🚀 API listening on ${env.apiUrl} (port ${env.port})`);
+    console.log(`API listening on ${env.apiUrl} (port ${env.port})`);
   });
 
   const shutdown = async () => {

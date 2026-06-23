@@ -39,6 +39,7 @@ model User {
   posts         Post[]               @relation("AuthorPosts")
   likes         Like[]
   bookmarks     Bookmark[]
+  pollVotes     PollVote[]
   refreshTokens RefreshToken[]
   resetTokens   PasswordResetToken[]
 
@@ -123,6 +124,9 @@ model Post {
   hashtags  PostHashtag[]
   mentions  Mention[]
 
+  // An optional attached poll (1:1).
+  poll Poll?
+
   pinnedBy      User?          @relation("PinnedPost")
   notifications Notification[]
 
@@ -143,6 +147,43 @@ model Media {
   height Int?
 
   @@index([postId])
+}
+
+// ─────────────────────────── Polls ───────────────────────────
+
+model Poll {
+  id        String       @id @default(cuid())
+  postId    String       @unique
+  post      Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  endsAt    DateTime
+  createdAt DateTime     @default(now())
+  options   PollOption[]
+  votes     PollVote[]
+}
+
+model PollOption {
+  id     String     @id @default(cuid())
+  pollId String
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  text   String
+  order  Int
+  votes  PollVote[]
+
+  @@index([pollId])
+}
+
+model PollVote {
+  pollId    String
+  poll      Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  optionId  String
+  option    PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+
+  // One vote per user per poll.
+  @@id([pollId, userId])
+  @@index([optionId])
 }
 
 // ───────────────────────── Engagement ─────────────────────────

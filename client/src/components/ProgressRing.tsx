@@ -22,7 +22,7 @@ export function ProgressRing({ value, max }: Props) {
         <span className={`text-sm tabular-nums ${over ? 'text-red-500' : 'text-amber-500'}`}>{remaining}</span>
       )}
       <svg width="26" height="26" viewBox="0 0 26 26" className="-rotate-90">
-        <circle cx="13" cy="13" r={r} fill="none" stroke="currentColor" strokeWidth="2.5" className="text-gray-200 dark:text-gray-800" />
+        <circle cx="13" cy="13" r={r} fill="none" stroke="currentColor" strokeWidth="2.5" className="text-slate-200 dark:text-white/10" />
         <circle
           cx="13"
           cy="13"

@@ -1,9 +1,12 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
+import { MessageSquareDashed, AlertTriangle } from 'lucide-react';
 import { useIntersection } from '../hooks/useIntersection';
 import { PostCard } from './PostCard';
 import { PostSkeletonList } from './PostSkeleton';
+import { EmptyState } from './EmptyState';
 import { Spinner } from './Spinner';
 import type { Post } from '../types';
+import type { LucideIcon } from 'lucide-react';
 
 interface PageResult {
   items: Post[];
@@ -15,12 +18,13 @@ interface Props {
   fetchPage: (pageParam: string | number | undefined) => Promise<PageResult>;
   initialPageParam?: string | number;
   emptyText?: string;
+  emptyIcon?: LucideIcon;
   subscribeRealtime?: boolean;
 }
 
 // Generic cursor/page-based infinite feed shared by Home, Explore, Profile,
 // Bookmarks, Hashtag and Search.
-export function Feed({ queryKey, fetchPage, initialPageParam, emptyText = 'Nothing here yet.', subscribeRealtime }: Props) {
+export function Feed({ queryKey, fetchPage, initialPageParam, emptyText = 'Nothing here yet.', emptyIcon, subscribeRealtime }: Props) {
   const query = useInfiniteQuery({
     queryKey,
     queryFn: ({ pageParam }) => fetchPage(pageParam as string | number | undefined),
@@ -37,7 +41,17 @@ export function Feed({ queryKey, fetchPage, initialPageParam, emptyText = 'Nothi
 
   if (query.isLoading) return <PostSkeletonList />;
   if (query.isError)
-    return <p className="p-6 text-center text-red-500">Could not load posts. Please try again.</p>;
+    return (
+      <EmptyState
+        icon={AlertTriangle}
+        title="Couldn't load posts"
+        subtitle="Something went wrong. Check your connection and try again."
+      >
+        <button onClick={() => query.refetch()} className="btn-outline">
+          Retry
+        </button>
+      </EmptyState>
+    );
 
   const posts = query.data?.pages.flatMap((p) => p.items) ?? [];
   // De-duplicate (reposts of the same original can appear across pages).
@@ -48,7 +62,8 @@ export function Feed({ queryKey, fetchPage, initialPageParam, emptyText = 'Nothi
     return true;
   });
 
-  if (unique.length === 0) return <p className="p-8 text-center text-gray-500">{emptyText}</p>;
+  if (unique.length === 0)
+    return <EmptyState icon={emptyIcon ?? MessageSquareDashed} title={emptyText} />;
 
   return (
     <div>

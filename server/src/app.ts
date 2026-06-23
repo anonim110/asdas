@@ -7,6 +7,7 @@ import { env } from './config/env';
 import routes from './routes';
 import { globalLimiter } from './middleware/rateLimit';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { uploadPublicPath, uploadRoot } from './middleware/upload';
 
 export function createApp() {
   const app = express();
@@ -35,10 +36,19 @@ export function createApp() {
   app.use(cookieParser());
 
   // Serve uploaded media as static files.
-  app.use(`/${env.upload.dir}`, express.static(path.resolve(process.cwd(), env.upload.dir)));
+  app.use(uploadPublicPath, express.static(uploadRoot));
 
   // Apply the global rate limiter to the API surface.
   app.use('/api', globalLimiter, routes);
+  app.use('/api', notFoundHandler);
+
+  // In production the React build is served from the same origin as the API.
+  // This keeps auth cookies, OAuth callbacks, and Socket.io straightforward.
+  if (env.isProd) {
+    const clientDist = path.resolve(process.cwd(), '../client/dist');
+    app.use(express.static(clientDist));
+    app.get('*', (_req, res) => res.sendFile(path.join(clientDist, 'index.html')));
+  }
 
   app.use(notFoundHandler);
   app.use(errorHandler);

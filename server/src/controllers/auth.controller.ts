@@ -9,7 +9,7 @@ const GOOGLE_STATE_COOKIE = 'googleOAuthState';
 function setRefreshCookie(res: Response, token: string) {
   res.cookie(REFRESH_COOKIE, token, {
     httpOnly: true,
-    // In production the frontend (Vercel) and API (Render) are on different
+    // In production the frontend and API are on different origins,
     // sites, so the cookie must be SameSite=None + Secure to be sent on
     // cross-site credentialed requests. Locally we keep Lax.
     secure: env.isProd,

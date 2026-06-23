@@ -26,13 +26,13 @@ export function Explore() {
           }}
           className="px-4 pb-3"
         >
-          <div className="flex items-center gap-2 rounded-full bg-gray-100 px-4 py-2 dark:bg-gray-900">
-            <Search size={18} className="text-gray-500" />
+          <div className="flex min-h-12 items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/85 px-4 py-2.5 shadow-sm transition focus-within:border-brand/40 focus-within:ring-4 focus-within:ring-brand/10 dark:border-white/10 dark:bg-white/[0.05]">
+            <Search size={18} className="text-slate-500" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search Chirp"
-              className="w-full bg-transparent outline-none"
+              placeholder="Search Murmur"
+              className="w-full bg-transparent outline-none placeholder:text-slate-400"
             />
           </div>
         </form>
@@ -45,10 +45,10 @@ export function Explore() {
             <Link
               key={t.tag}
               to={`/hashtag/${t.tag}`}
-              className="block px-4 py-3 transition hover:bg-gray-50 dark:hover:bg-gray-950"
+              className="block px-4 py-3 transition duration-200 hover:bg-rose-50 dark:hover:bg-white/[0.04]"
             >
               <p className="font-bold">#{t.tag}</p>
-              <p className="text-xs text-gray-500">{compactNumber(t.count)} posts</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{compactNumber(t.count)} posts</p>
             </Link>
           ))}
         </div>

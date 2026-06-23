@@ -18,16 +18,11 @@ export function Messages() {
   const { data: conversations, isLoading } = useQuery({
     queryKey: ['conversations'],
     queryFn: async () => (await api.get<{ conversations: Conversation[] }>('/conversations')).data.conversations,
-    // Always pull a fresh list when opening Messages so newly created or
-    // newly received conversations show up immediately.
     refetchOnMount: 'always',
     staleTime: 0,
   });
 
   const fromList = conversations?.find((c) => c.id === id);
-
-  // Fallback: if the requested conversation isn't in the list cache yet (just
-  // created, or arrived in realtime), fetch it directly so the chat still opens.
   const { data: single } = useQuery({
     queryKey: ['conversation', id],
     queryFn: async () => (await api.get<{ conversation: Conversation }>(`/conversations/${id}`)).data.conversation,
@@ -36,7 +31,6 @@ export function Messages() {
 
   const active = fromList ?? single;
 
-  // Ask the server who in this list is currently online.
   useEffect(() => {
     if (conversations?.length) {
       usePresence.getState().request(conversations.map((c) => c.other.id));
@@ -45,9 +39,8 @@ export function Messages() {
 
   return (
     <div className="grid h-[100dvh] grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-      {/* Conversation list — hidden on mobile when a chat is open */}
       <div
-        className={`overflow-y-auto border-r border-gray-200 pb-20 dark:border-gray-800 sm:pb-0 ${
+        className={`overflow-y-auto border-r border-slate-200/80 pb-20 dark:border-white/10 sm:pb-0 ${
           id ? 'hidden md:block' : ''
         }`}
       >
@@ -55,33 +48,37 @@ export function Messages() {
         {isLoading ? (
           <Spinner />
         ) : !conversations?.length ? (
-          <p className="p-8 text-center text-gray-500">No conversations yet. Visit a profile to start one.</p>
+          <p className="p-8 text-center text-slate-500 dark:text-slate-400">
+            No conversations yet. Visit a profile to start one.
+          </p>
         ) : (
           conversations.map((c) => (
             <Link
               key={c.id}
               to={`/messages/${c.id}`}
-              className={`flex gap-3 px-4 py-3 transition hover:bg-gray-50 dark:hover:bg-gray-950 ${
-                c.id === id ? 'bg-gray-100 dark:bg-gray-900' : ''
+              className={`flex gap-3 px-4 py-3 transition duration-200 hover:bg-rose-50 dark:hover:bg-white/[0.04] ${
+                c.id === id ? 'bg-rose-50 dark:bg-white/[0.07]' : ''
               }`}
             >
               <Avatar user={c.other} linkable={false} showPresence />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between">
-                  <p className="truncate font-bold">{c.other.displayName}</p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="truncate font-extrabold text-slate-950 dark:text-white">{c.other.displayName}</p>
                   {c.lastMessage && (
-                    <span className="text-xs text-gray-500">{relativeTime(c.lastMessage.createdAt)}</span>
+                    <span className="shrink-0 text-xs font-medium text-slate-500 dark:text-slate-400">
+                      {relativeTime(c.lastMessage.createdAt)}
+                    </span>
                   )}
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-sm text-gray-500">
+                  <p className="truncate text-sm text-slate-500 dark:text-slate-400">
                     {c.lastMessage
                       ? `${c.lastMessage.senderId === me?.id ? 'You: ' : ''}${
-                          c.lastMessage.content ?? (c.lastMessage.imageUrl ? '📷 Photo' : '')
+                          c.lastMessage.content ?? (c.lastMessage.imageUrl ? 'Photo' : '')
                         }`
                       : 'No messages yet'}
                   </p>
-                  {c.unread > 0 && <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-brand" />}
+                  {c.unread > 0 && <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-accent ring-2 ring-white dark:ring-[#07080f]" />}
                 </div>
               </div>
             </Link>
@@ -89,12 +86,11 @@ export function Messages() {
         )}
       </div>
 
-      {/* Chat panel */}
       <div className={id ? '' : 'hidden md:block'}>
         {active ? (
           <ChatPanel conversation={active} />
         ) : (
-          <div className="flex h-full items-center justify-center p-8 text-center text-gray-500">
+          <div className="flex h-full items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400">
             {id ? <Spinner /> : 'Select a conversation to start chatting.'}
           </div>
         )}

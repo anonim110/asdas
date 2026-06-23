@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import * as messageService from '../services/message.service';
-import { publicUrl } from '../middleware/upload';
+import { storeUploadedFile } from '../middleware/upload';
 
 export async function listConversations(req: Request, res: Response) {
   const conversations = await messageService.listConversations(req.userId!);
@@ -25,7 +25,7 @@ export async function getMessages(req: Request, res: Response) {
 
 export async function sendMessage(req: Request, res: Response) {
   const file = req.file as Express.Multer.File | undefined;
-  const imageUrl = file ? publicUrl(file.filename) : undefined;
+  const imageUrl = file ? await storeUploadedFile(file) : undefined;
   const message = await messageService.sendMessage(
     req.params.id,
     req.userId!,

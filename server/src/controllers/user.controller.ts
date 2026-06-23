@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import * as userService from '../services/user.service';
-import { publicUrl } from '../middleware/upload';
+import { storeUploadedFile } from '../middleware/upload';
 
 export async function getProfile(req: Request, res: Response) {
   const profile = await userService.getProfile(req.params.username, req.userId);
@@ -16,8 +16,12 @@ export async function updateProfile(req: Request, res: Response) {
   // Avatar / banner may arrive as uploaded files alongside text fields.
   const files = req.files as { [field: string]: Express.Multer.File[] } | undefined;
   const data: Record<string, unknown> = { ...req.body };
-  if (files?.avatar?.[0]) data.avatarUrl = publicUrl(files.avatar[0].filename);
-  if (files?.banner?.[0]) data.bannerUrl = publicUrl(files.banner[0].filename);
+  const [avatarUrl, bannerUrl] = await Promise.all([
+    files?.avatar?.[0] ? storeUploadedFile(files.avatar[0]) : undefined,
+    files?.banner?.[0] ? storeUploadedFile(files.banner[0]) : undefined,
+  ]);
+  if (avatarUrl) data.avatarUrl = avatarUrl;
+  if (bannerUrl) data.bannerUrl = bannerUrl;
 
   const user = await userService.updateProfile(req.userId!, data);
   res.json({ user });

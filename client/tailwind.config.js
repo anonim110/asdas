@@ -5,12 +5,21 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Murmur's signature indigo-violet.
+        // Murmur's social-first palette: warm engagement + blue utility accent.
         brand: {
-          DEFAULT: '#6d5dfc',
-          hover: '#5a48e8',
-          soft: '#8b7dff',
+          DEFAULT: '#E11D48',
+          hover: '#BE123C',
+          soft: '#FB7185',
         },
+        accent: {
+          DEFAULT: '#2563EB',
+          hover: '#1D4ED8',
+          soft: '#93C5FD',
+        },
+      },
+      boxShadow: {
+        soft: '0 18px 50px -28px rgba(15, 23, 42, 0.35)',
+        lift: '0 18px 35px -24px rgba(225, 29, 72, 0.45)',
       },
       keyframes: {
         'fade-in': {

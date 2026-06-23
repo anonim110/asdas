@@ -8,6 +8,7 @@ import { usePresence } from '../store/presence';
 import { joinedDate, compactNumber } from '../lib/format';
 import { PageHeader } from '../components/PageHeader';
 import { Avatar } from '../components/Avatar';
+import { Dismiss } from '../components/Dismiss';
 import { FollowButton } from '../components/FollowButton';
 import { Feed } from '../components/Feed';
 import { Spinner } from '../components/Spinner';
@@ -70,7 +71,7 @@ export function Profile() {
       <PageHeader title={profile.displayName} subtitle={`${compactNumber(profile.counts.posts)} posts`} back />
 
       {/* Banner */}
-      <div className="h-48 w-full bg-gray-200 dark:bg-gray-800">
+      <div className="h-48 w-full bg-gradient-to-br from-rose-100 via-white to-blue-100 dark:from-white/[0.08] dark:via-white/[0.03] dark:to-blue-500/10">
         {profile.bannerUrl && <img src={profile.bannerUrl} className="h-full w-full object-cover" />}
       </div>
 
@@ -84,24 +85,27 @@ export function Profile() {
               <>
                 <button
                   onClick={message}
-                  className="rounded-full border border-gray-300 p-2 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-900"
+                  className="icon-button border border-slate-200 bg-white/80 dark:border-white/10 dark:bg-white/[0.04]"
                   title="Message"
+                  aria-label="Message"
                 >
                   <Mail size={18} />
                 </button>
                 <div className="relative">
                   <button
                     onClick={() => setMenu((o) => !o)}
-                    className="rounded-full border border-gray-300 p-2 hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-900"
+                    className="icon-button border border-slate-200 bg-white/80 dark:border-white/10 dark:bg-white/[0.04]"
+                    aria-label="Profile actions"
                   >
                     <MoreHorizontal size={18} />
                   </button>
+                  {menu && <Dismiss onDismiss={() => setMenu(false)} />}
                   {menu && (
-                    <div className="absolute right-0 z-10 mt-1 w-48 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-800 dark:bg-black">
-                      <button onClick={muteToggle} className="block w-full px-4 py-3 text-left hover:bg-gray-100 dark:hover:bg-gray-900">
+                    <div className="panel absolute right-0 z-10 mt-1 w-48 overflow-hidden py-1">
+                      <button onClick={muteToggle} className="block w-full px-4 py-3 text-left font-medium transition hover:bg-rose-50 dark:hover:bg-white/[0.07]">
                         {rel.isMuted ? 'Unmute' : 'Mute'} @{username}
                       </button>
-                      <button onClick={blockToggle} className="block w-full px-4 py-3 text-left text-red-500 hover:bg-gray-100 dark:hover:bg-gray-900">
+                      <button onClick={blockToggle} className="block w-full px-4 py-3 text-left font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10">
                         {rel.isBlocked ? 'Unblock' : 'Block'} @{username}
                       </button>
                     </div>
@@ -120,17 +124,17 @@ export function Profile() {
 
         <div className="mt-3">
           <h2 className="text-xl font-extrabold">{profile.displayName}</h2>
-          <p className="text-gray-500">@{profile.username}</p>
+          <p className="font-medium text-slate-500 dark:text-slate-400">@{profile.username}</p>
           {rel.isFollowedBy && !rel.isSelf && (
-            <span className="mt-1 inline-block rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 dark:bg-gray-800">
+            <span className="mt-1 inline-block rounded-full bg-rose-50 px-2 py-1 text-xs font-bold text-brand dark:bg-white/[0.06] dark:text-rose-300">
               Follows you
             </span>
           )}
         </div>
 
-        {profile.bio && <p className="mt-3 whitespace-pre-wrap">{profile.bio}</p>}
+        {profile.bio && <p className="mt-3 whitespace-pre-wrap leading-6 text-slate-800 dark:text-slate-200">{profile.bio}</p>}
 
-        <div className="mt-3 flex flex-wrap gap-4 text-sm text-gray-500">
+        <div className="mt-3 flex flex-wrap gap-4 text-sm font-medium text-slate-500 dark:text-slate-400">
           {profile.location && (
             <span className="flex items-center gap-1">
               <MapPin size={16} /> {profile.location}
@@ -153,27 +157,27 @@ export function Profile() {
 
         <div className="mt-3 flex gap-5 text-sm">
           <Link to={`/${username}/following`} className="hover:underline">
-            <strong>{compactNumber(profile.counts.following)}</strong> <span className="text-gray-500">Following</span>
+            <strong>{compactNumber(profile.counts.following)}</strong> <span className="text-slate-500 dark:text-slate-400">Following</span>
           </Link>
           <Link to={`/${username}/followers`} className="hover:underline">
-            <strong>{compactNumber(profile.counts.followers)}</strong> <span className="text-gray-500">Followers</span>
+            <strong>{compactNumber(profile.counts.followers)}</strong> <span className="text-slate-500 dark:text-slate-400">Followers</span>
           </Link>
         </div>
       </div>
 
       {rel.isBlocked ? (
-        <p className="p-10 text-center text-gray-500">You have blocked @{username}.</p>
+        <p className="p-10 text-center text-slate-500 dark:text-slate-400">You have blocked @{username}.</p>
       ) : (
         <>
           {/* Tabs */}
-          <div className="mt-4 flex border-b border-gray-200 dark:border-gray-800">
+          <div className="mt-4 flex border-b border-slate-200/80 dark:border-white/10">
             {TABS.map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className="relative flex-1 py-4 text-center font-bold capitalize transition hover:bg-gray-100 dark:hover:bg-gray-900"
+                className="relative flex-1 py-4 text-center font-bold capitalize transition duration-200 hover:bg-rose-50 dark:hover:bg-white/[0.05]"
               >
-                <span className={tab === t ? '' : 'text-gray-500'}>{t}</span>
+                <span className={tab === t ? 'text-slate-950 dark:text-white' : 'text-slate-500 dark:text-slate-400'}>{t}</span>
                 {tab === t && <span className="absolute bottom-0 left-1/2 h-1 w-14 -translate-x-1/2 rounded-full bg-brand" />}
               </button>
             ))}

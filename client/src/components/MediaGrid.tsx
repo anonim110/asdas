@@ -14,7 +14,7 @@ export function MediaGrid({ media }: { media: Media[] }) {
   return (
     <>
       <div
-        className={`mt-2 grid ${gridClass} gap-0.5 overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800`}
+        className={`mt-3 grid ${gridClass} gap-0.5 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 dark:border-white/10 dark:bg-white/[0.05]`}
         onClick={(e) => e.stopPropagation()}
       >
         {media.map((m, i) => {
