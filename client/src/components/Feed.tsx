@@ -67,8 +67,8 @@ export function Feed({ queryKey, fetchPage, initialPageParam, emptyText = 'Nothi
 
   return (
     <div>
-      {unique.map((post) => (
-        <PostCard key={post.id} post={post} subscribeRealtime={subscribeRealtime} />
+      {unique.map((post, index) => (
+        <PostCard key={post.id} post={post} index={index} subscribeRealtime={subscribeRealtime} />
       ))}
       <div ref={sentinelRef} />
       {query.isFetchingNextPage && <Spinner />}

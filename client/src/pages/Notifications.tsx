@@ -10,6 +10,7 @@ import { PageHeader } from '../components/PageHeader';
 import { Avatar } from '../components/Avatar';
 import { EmptyState } from '../components/EmptyState';
 import { Spinner } from '../components/Spinner';
+import { UserName } from '../components/UserName';
 import type { Notification, NotificationType } from '../types';
 
 const ICONS: Record<NotificationType, { icon: typeof Heart; color: string }> = {
@@ -85,7 +86,7 @@ export function Notifications() {
                 <div className="min-w-0">
                   <Avatar user={n.actor} size="sm" />
                   <p className="mt-1">
-                    <span className="font-bold">{n.actor.displayName}</span>{' '}
+                    <UserName user={n.actor} compact />{' '}
                     <span className="text-gray-500">@{n.actor.username}</span> {VERB[n.type]}
                     <span className="ml-1 text-sm text-gray-500">· {relativeTime(n.createdAt)}</span>
                   </p>

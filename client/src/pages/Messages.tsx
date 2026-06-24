@@ -9,6 +9,7 @@ import { PageHeader } from '../components/PageHeader';
 import { Avatar } from '../components/Avatar';
 import { Spinner } from '../components/Spinner';
 import { ChatPanel } from './ChatPanel';
+import { UserName } from '../components/UserName';
 import type { Conversation } from '../types';
 
 export function Messages() {
@@ -63,7 +64,7 @@ export function Messages() {
               <Avatar user={c.other} linkable={false} showPresence />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="truncate font-extrabold text-slate-950 dark:text-white">{c.other.displayName}</p>
+                  <UserName user={c.other} className="max-w-full" compact />
                   {c.lastMessage && (
                     <span className="shrink-0 text-xs font-medium text-slate-500 dark:text-slate-400">
                       {relativeTime(c.lastMessage.createdAt)}

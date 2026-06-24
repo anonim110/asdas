@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, MapPin, LinkIcon, MoreHorizontal, Mail } from 'lucide-react';
+import { CalendarDays, MapPin, LinkIcon, MoreHorizontal, Mail, Share2 } from 'lucide-react';
 import { api } from '../lib/api';
 import { toast } from '../store/toast';
 import { usePresence } from '../store/presence';
@@ -12,6 +12,8 @@ import { Dismiss } from '../components/Dismiss';
 import { FollowButton } from '../components/FollowButton';
 import { Feed } from '../components/Feed';
 import { Spinner } from '../components/Spinner';
+import { UserName } from '../components/UserName';
+import { getAvatarTheme } from '../lib/avatar';
 import type { Conversation, Post, Profile as ProfileType } from '../types';
 
 type Tab = 'posts' | 'replies' | 'media' | 'likes';
@@ -65,14 +67,26 @@ export function Profile() {
   if (isError || !profile) return <p className="p-6 text-center text-red-500">User not found.</p>;
 
   const rel = profile.relationship;
+  const avatarTheme = getAvatarTheme(profile.username);
+
+  async function copyProfile() {
+    await navigator.clipboard?.writeText(`${window.location.origin}/${username}`);
+    toast('Profile link copied', 'success');
+  }
 
   return (
     <div>
       <PageHeader title={profile.displayName} subtitle={`${compactNumber(profile.counts.posts)} posts`} back />
 
       {/* Banner */}
-      <div className="h-48 w-full bg-gradient-to-br from-rose-100 via-white to-blue-100 dark:from-white/[0.08] dark:via-white/[0.03] dark:to-blue-500/10">
-        {profile.bannerUrl && <img src={profile.bannerUrl} className="h-full w-full object-cover" />}
+      <div className={`h-36 w-full bg-gradient-to-br sm:h-48 ${avatarTheme.banner}`}>
+        {profile.bannerUrl && (
+          <img
+            src={profile.bannerUrl}
+            alt=""
+            className="h-full w-full animate-avatar-reveal object-cover"
+          />
+        )}
       </div>
 
       <div className="px-4">
@@ -80,7 +94,15 @@ export function Profile() {
           <div className="-mt-16">
             <Avatar user={profile} size="xl" linkable={false} showPresence />
           </div>
-          <div className="mt-3 flex items-center gap-2">
+          <div className="mt-3 flex flex-wrap items-center justify-end gap-1.5">
+            <button
+              onClick={copyProfile}
+              className="icon-button border border-slate-200 bg-white/80 dark:border-white/10 dark:bg-white/[0.04]"
+              title="Copy profile link"
+              aria-label="Copy profile link"
+            >
+              <Share2 size={18} />
+            </button>
             {!rel.isSelf && (
               <>
                 <button
@@ -123,7 +145,7 @@ export function Profile() {
         </div>
 
         <div className="mt-3">
-          <h2 className="text-xl font-extrabold">{profile.displayName}</h2>
+          <UserName user={profile} className="max-w-full text-xl" />
           <p className="font-medium text-slate-500 dark:text-slate-400">@{profile.username}</p>
           {rel.isFollowedBy && !rel.isSelf && (
             <span className="mt-1 inline-block rounded-full bg-rose-50 px-2 py-1 text-xs font-bold text-brand dark:bg-white/[0.06] dark:text-rose-300">

@@ -16,6 +16,7 @@ export async function getProfile(username: string, viewerId?: string) {
       location: true,
       avatarUrl: true,
       bannerUrl: true,
+      verified: true,
       lastSeenAt: true,
       createdAt: true,
       pinnedPostId: true,
@@ -70,6 +71,7 @@ export async function updateProfile(userId: string, data: UpdateProfileArgs) {
       location: true,
       avatarUrl: true,
       bannerUrl: true,
+      verified: true,
       createdAt: true,
     },
   });

@@ -26,7 +26,7 @@ export function Explore() {
           }}
           className="px-4 pb-3"
         >
-          <div className="flex min-h-12 items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/85 px-4 py-2.5 shadow-sm transition focus-within:border-brand/40 focus-within:ring-4 focus-within:ring-brand/10 dark:border-white/10 dark:bg-white/[0.05]">
+          <div className="search-field">
             <Search size={18} className="text-slate-500" />
             <input
               value={q}

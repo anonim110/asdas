@@ -11,6 +11,7 @@ export interface AuthUser {
   createdAt: string;
   hasPassword: boolean;
   googleLinked: boolean;
+  verified?: boolean;
 }
 
 export interface UserSummary {
@@ -18,6 +19,7 @@ export interface UserSummary {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  verified?: boolean;
   bio?: string | null;
   lastSeenAt?: string;
   isFollowing?: boolean;
@@ -81,6 +83,7 @@ export interface Profile {
   location: string | null;
   avatarUrl: string | null;
   bannerUrl: string | null;
+  verified?: boolean;
   lastSeenAt?: string;
   createdAt: string;
   pinnedPostId: string | null;

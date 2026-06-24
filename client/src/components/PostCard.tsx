@@ -24,6 +24,7 @@ import { MediaGrid } from './MediaGrid';
 import { Modal } from './Modal';
 import { Dismiss } from './Dismiss';
 import { PostComposer } from './PostComposer';
+import { UserName } from './UserName';
 import type { Post, PostCounts, ViewerState } from '../types';
 
 interface Props {
@@ -31,9 +32,10 @@ interface Props {
   onDeleted?: (id: string) => void;
   subscribeRealtime?: boolean;
   showThreadLine?: boolean;
+  index?: number;
 }
 
-export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine }: Props) {
+export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, index = 0 }: Props) {
   const navigate = useNavigate();
   const me = useAuth((s) => s.user);
 
@@ -156,7 +158,8 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine }:
   return (
     <article
       onClick={() => navigate(`/post/${display.id}`)}
-      className="card animate-fade-in cursor-pointer px-4 py-4 transition duration-200 hover:bg-rose-50/60 dark:hover:bg-white/[0.04]"
+      style={{ animationDelay: `${Math.min(index, 8) * 35}ms` }}
+      className="post-card card animate-feed-enter cursor-pointer px-4 py-4"
     >
       {isRepost && (
         <div className="mb-2 flex items-center gap-2 pl-6 text-sm font-medium text-slate-500 dark:text-slate-400">
@@ -183,9 +186,9 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine }:
             <Link
               to={`/${display.author.username}`}
               onClick={(e) => e.stopPropagation()}
-              className="truncate font-extrabold text-slate-950 hover:underline dark:text-white"
+              className="min-w-0 hover:underline"
             >
-              {display.author.displayName}
+              <UserName user={display.author} className="max-w-full" compact />
             </Link>
             <span className="truncate text-slate-500 dark:text-slate-400">@{display.author.username}</span>
             <span className="text-slate-400">-</span>
@@ -278,7 +281,7 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine }:
                 aria-label="Repost"
               >
                 <span className="rounded-full p-1.5 group-hover:bg-green-500/10">
-                  <Repeat2 size={18} />
+                  <Repeat2 size={18} className={viewer.reposted ? 'animate-nav-pop' : ''} />
                 </span>
                 {counts.reposts > 0 && <span className="text-sm">{compactNumber(counts.reposts)}</span>}
               </button>
@@ -335,7 +338,11 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine }:
               aria-label="Bookmark"
             >
               <span className="rounded-full p-1.5 group-hover:bg-brand/10">
-                <Bookmark size={18} fill={viewer.bookmarked ? 'currentColor' : 'none'} />
+                <Bookmark
+                  size={18}
+                  fill={viewer.bookmarked ? 'currentColor' : 'none'}
+                  className={viewer.bookmarked ? 'animate-nav-pop' : ''}
+                />
               </span>
             </button>
 
@@ -360,7 +367,7 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine }:
       <Modal open={quoteOpen} onClose={() => setQuoteOpen(false)} title="Quote post">
         <PostComposer quotedPostId={display.id} autoFocus placeholder="Add a comment" onPosted={() => setQuoteOpen(false)} />
         <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-sm dark:border-white/10 dark:bg-white/[0.04]">
-          <span className="font-bold">{display.author.displayName}</span>{' '}
+          <UserName user={display.author} compact />{' '}
           <span className="text-slate-500 dark:text-slate-400">@{display.author.username}</span>
           <p className="mt-1 line-clamp-3">{content}</p>
         </div>
@@ -404,7 +411,7 @@ function QuoteEmbed({ post }: { post: Post }) {
     >
       <div className="flex min-w-0 items-center gap-2 text-sm">
         <Avatar user={post.author} size="sm" />
-        <span className="truncate font-bold">{post.author.displayName}</span>
+        <UserName user={post.author} className="max-w-[45%]" compact />
         <span className="truncate text-slate-500 dark:text-slate-400">@{post.author.username}</span>
       </div>
       {post.content && (

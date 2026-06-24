@@ -6,6 +6,7 @@ import { api } from '../lib/api';
 import { compactNumber } from '../lib/format';
 import { Avatar } from './Avatar';
 import { FollowButton } from './FollowButton';
+import { UserName } from './UserName';
 import type { Trend, UserSummary } from '../types';
 
 export function RightSidebar() {
@@ -33,7 +34,7 @@ export function RightSidebar() {
         }}
         className="sticky top-0 z-10 bg-rose-50/40 pb-2 dark:bg-[#07080f]"
       >
-        <div className="flex min-h-12 items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/85 px-4 py-2.5 shadow-sm transition focus-within:border-brand/40 focus-within:ring-4 focus-within:ring-brand/10 dark:border-white/10 dark:bg-white/[0.05]">
+        <div className="search-field">
           <Search size={18} className="text-slate-500" />
           <input
             value={q}
@@ -51,7 +52,7 @@ export function RightSidebar() {
             <div key={u.id} className="flex items-center gap-3 px-4 py-3 transition duration-200 hover:bg-rose-50 dark:hover:bg-white/[0.06]">
               <Avatar user={u} size="sm" />
               <Link to={`/${u.username}`} className="min-w-0 flex-1">
-                <p className="truncate font-bold leading-tight">{u.displayName}</p>
+                <UserName user={u} className="max-w-full leading-tight" compact />
                 <p className="truncate text-sm text-slate-500 dark:text-slate-400">@{u.username}</p>
               </Link>
               <FollowButton username={u.username} initialFollowing={!!u.isFollowing} small />

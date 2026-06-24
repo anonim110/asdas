@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Avatar } from './Avatar';
 import { FollowButton } from './FollowButton';
 import { useAuth } from '../store/auth';
+import { UserName } from './UserName';
 import type { UserSummary } from '../types';
 
 export function UserListItem({ user }: { user: UserSummary }) {
@@ -15,7 +16,7 @@ export function UserListItem({ user }: { user: UserSummary }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <p className="truncate font-extrabold text-slate-950 dark:text-white">{user.displayName}</p>
+            <UserName user={user} className="max-w-full" />
             <p className="truncate text-sm text-slate-500 dark:text-slate-400">@{user.username}</p>
           </div>
           {me?.username !== user.username && (
