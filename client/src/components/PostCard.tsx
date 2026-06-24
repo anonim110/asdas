@@ -25,7 +25,7 @@ import { Modal } from './Modal';
 import { Dismiss } from './Dismiss';
 import { PostComposer } from './PostComposer';
 import { UserName } from './UserName';
-import type { Post, PostCounts, ViewerState } from '../types';
+import type { Post, PostCounts, ViewerState, PostAnalytics } from '../types';
 
 interface Props {
   post: Post;
@@ -54,8 +54,23 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
   const [editOpen, setEditOpen] = useState(false);
   const [editText, setEditText] = useState('');
   const [editBusy, setEditBusy] = useState(false);
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
+  const [analytics, setAnalytics] = useState<PostAnalytics | null>(null);
 
   const isOwner = me?.id === display.author.id;
+
+  async function openAnalytics() {
+    setMenuOpen(false);
+    setAnalytics(null);
+    setAnalyticsOpen(true);
+    try {
+      const { data } = await api.get<{ analytics: PostAnalytics }>(`/posts/${display.id}/analytics`);
+      setAnalytics(data.analytics);
+    } catch {
+      toast('Could not load analytics', 'error');
+      setAnalyticsOpen(false);
+    }
+  }
 
   async function saveEdit() {
     setEditBusy(true);
@@ -239,6 +254,14 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
                   >
                     <Pin size={16} /> Pin to profile
                   </button>
+                  {!isRepost && (
+                    <button
+                      onClick={openAnalytics}
+                      className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-rose-50 dark:hover:bg-white/[0.07]"
+                    >
+                      <BarChart2 size={16} /> View analytics
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -394,6 +417,43 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
             {editBusy ? 'Saving...' : 'Save'}
           </button>
         </div>
+      </Modal>
+
+      <Modal open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} title="Post analytics">
+        {!analytics ? (
+          <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">Loading…</p>
+        ) : (
+          <div>
+            <div className="mb-4 flex items-baseline gap-2">
+              <span className="text-3xl font-extrabold tabular-nums">{compactNumber(analytics.views)}</span>
+              <span className="text-sm text-slate-500 dark:text-slate-400">impressions</span>
+              <span className="ml-auto rounded-full bg-brand/10 px-2.5 py-1 text-xs font-bold text-brand">
+                {analytics.engagementRate}% engagement
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                ['Likes', analytics.likes],
+                ['Reposts', analytics.reposts],
+                ['Replies', analytics.replies],
+                ['Quotes', analytics.quotes],
+                ['Bookmarks', analytics.bookmarks],
+                ['Interactions', analytics.interactions],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="rounded-2xl border border-slate-200/80 p-3 text-center dark:border-white/10"
+                >
+                  <p className="text-xl font-extrabold tabular-nums">{compactNumber(value as number)}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-center text-xs text-slate-500 dark:text-slate-400">
+              Posted {relativeTime(analytics.createdAt)}
+            </p>
+          </div>
+        )}
       </Modal>
     </article>
   );
