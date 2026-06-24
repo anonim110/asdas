@@ -4,8 +4,10 @@ import { getSocket } from '../lib/socket';
 interface PresenceState {
   online: Record<string, boolean>;
   lastSeen: Record<string, string>;
+  activities: Record<string, string | null>;
   setOnline: (userId: string, online: boolean, lastSeenAt?: string) => void;
-  setOnlineList: (ids: string[]) => void;
+  setActivity: (userId: string, game: string | null) => void;
+  setOnlineList: (ids: string[], activities?: Record<string, string>) => void;
   request: (ids: string[]) => void;
 }
 
@@ -13,16 +15,19 @@ interface PresenceState {
 export const usePresence = create<PresenceState>((set) => ({
   online: {},
   lastSeen: {},
+  activities: {},
   setOnline: (userId, online, lastSeenAt) =>
     set((s) => ({
       online: { ...s.online, [userId]: online },
       lastSeen: lastSeenAt ? { ...s.lastSeen, [userId]: lastSeenAt } : s.lastSeen,
     })),
-  setOnlineList: (ids) =>
+  setActivity: (userId, game) =>
+    set((s) => ({ activities: { ...s.activities, [userId]: game } })),
+  setOnlineList: (ids, activities = {}) =>
     set((s) => {
       const next = { ...s.online };
       ids.forEach((id) => (next[id] = true));
-      return { online: next };
+      return { online: next, activities: { ...s.activities, ...activities } };
     }),
   // Ask the server for the current online state of specific users.
   request: (ids) => {

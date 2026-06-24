@@ -155,11 +155,7 @@ export function Profile() {
           )}
         </div>
 
-        {profile.gameStatus && (
-          <div className="mt-3">
-            <GameStatus status={profile.gameStatus} className="text-sm" />
-          </div>
-        )}
+        <GameStatus userId={profile.id} status={profile.gameStatus} className="mt-3 text-sm" />
 
         {profile.bio && <p className="mt-3 whitespace-pre-wrap leading-6 text-slate-800 dark:text-slate-200">{profile.bio}</p>}
 

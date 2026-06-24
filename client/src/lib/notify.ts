@@ -3,12 +3,6 @@
 // browser/PWA they use the standard Notification API. Either way we only fire
 // them when the app isn't in the foreground, so active users aren't spammed.
 
-declare global {
-  interface Window {
-    murmurDesktop?: { isDesktop: boolean; platform: string; focus?: () => void };
-  }
-}
-
 let permissionAsked = false;
 
 export type NotifyPermission = NotificationPermission | 'unsupported';

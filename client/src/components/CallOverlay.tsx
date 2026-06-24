@@ -13,6 +13,7 @@ import {
 import { useCall } from '../store/call';
 import { useDevices } from '../store/devices';
 import { Avatar } from './Avatar';
+import { openMediaSettings } from '../lib/mediaAccess';
 
 // A single circular call-control button with an optional "active/danger" look
 // and a soft neon glow that fits the app's gamer-leaning theme.
@@ -56,6 +57,7 @@ export function CallOverlay() {
     camEnabled,
     screenSharing,
     error,
+    mediaSettingsKind,
     init,
     accept,
     reject,
@@ -196,9 +198,22 @@ export function CallOverlay() {
           {screenSharing && <MonitorUp size={14} className="text-cyan-300" />}
           {statusLabel}
         </p>
-        {error && status !== 'ended' && (
-          <p className="mt-2 text-sm font-semibold text-rose-300">{error}</p>
-        )}
+        {(error && status !== 'ended') || mediaSettingsKind ? (
+          <div className="mt-2 flex flex-col items-center gap-2">
+            {error && status !== 'ended' && (
+              <p className="text-sm font-semibold text-rose-300">{error}</p>
+            )}
+            {mediaSettingsKind && (
+              <button
+                type="button"
+                onClick={() => openMediaSettings(mediaSettingsKind)}
+                className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold ring-1 ring-white/15"
+              >
+                Open system settings
+              </button>
+            )}
+          </div>
+        ) : null}
       </div>
 
       {/* Controls */}

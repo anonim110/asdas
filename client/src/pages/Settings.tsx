@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bell, Camera, Monitor, Smartphone, ShieldCheck, LogOut, Loader2, Mic, Video } from 'lucide-react';
+import { Bell, Camera, Monitor, Smartphone, ShieldCheck, LogOut, Loader2, Mic, Video, Gamepad2 } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { useAuth } from '../store/auth';
 import { useTheme } from '../store/theme';
@@ -10,6 +10,12 @@ import { soundsMuted, setSoundsMuted } from '../lib/sound';
 import { playMessageSound } from '../lib/sound';
 import { getNotifyPermission, requestNotifyPermission, type NotifyPermission } from '../lib/notify';
 import { relativeTime } from '../lib/format';
+import {
+  isDesktopApp,
+  isGameTrackingEnabled,
+  setGameTrackingEnabled,
+} from '../lib/desktop';
+import { openMediaSettings } from '../lib/mediaAccess';
 import { PageHeader } from '../components/PageHeader';
 import type { AuthUser, Session } from '../types';
 
@@ -39,6 +45,7 @@ export function Settings() {
   const [busy, setBusy] = useState(false);
   const [muted, setMuted] = useState(soundsMuted());
   const [notifyPermission, setNotifyPermission] = useState<NotifyPermission>(getNotifyPermission);
+  const [autoGameActivity, setAutoGameActivity] = useState(isGameTrackingEnabled);
 
   const avatarInput = useRef<HTMLInputElement>(null);
   const bannerInput = useRef<HTMLInputElement>(null);
@@ -264,6 +271,41 @@ export function Settings() {
 
       <CallDevices />
 
+      {isDesktopApp() && (
+        <section className="card p-4">
+          <h2 className="mb-1 flex items-center gap-2 text-lg font-bold">
+            <Gamepad2 size={20} /> Game activity
+          </h2>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="font-medium">Show the game you are playing</p>
+              <p className="text-sm text-gray-500">
+                Murmur checks running process names on this PC and shares only the detected game title.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={autoGameActivity}
+              onClick={() => {
+                const next = !autoGameActivity;
+                setAutoGameActivity(next);
+                setGameTrackingEnabled(next);
+              }}
+              className={`relative h-7 w-12 shrink-0 rounded-full transition ${
+                autoGameActivity ? 'bg-brand' : 'bg-gray-300 dark:bg-gray-700'
+              }`}
+            >
+              <span
+                className={`absolute top-1 h-5 w-5 rounded-full bg-white transition-all ${
+                  autoGameActivity ? 'left-6' : 'left-1'
+                }`}
+              />
+            </button>
+          </div>
+        </section>
+      )}
+
       {user.googleLinked && (
         <section className="card p-4">
           <h2 className="mb-1 text-lg font-bold">Google sign-in</h2>
@@ -295,7 +337,7 @@ export function Settings() {
 // Call device selection — detects the microphones/cameras present on this PC
 // and lets the user choose which ones calls should use (persisted).
 function CallDevices() {
-  const { mics, cams, micId, camId, permission, setMic, setCam, refresh } = useDevices();
+  const { mics, cams, micId, camId, permission, error, settingsKind, setMic, setCam, refresh } = useDevices();
   const [loading, setLoading] = useState(false);
 
   async function detect() {
@@ -320,9 +362,18 @@ function CallDevices() {
             {loading ? 'Detecting…' : 'Detect my devices'}
           </button>
           {permission === 'denied' && (
-            <p className="text-sm text-red-500">
-              Microphone/camera access was blocked. Allow it in your browser to pick a device.
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm text-red-500">{error || 'Microphone/camera access was blocked.'}</p>
+              {settingsKind && (
+                <button
+                  type="button"
+                  onClick={() => openMediaSettings(settingsKind)}
+                  className="btn-outline min-h-9 px-3 py-1 text-xs"
+                >
+                  Open system settings
+                </button>
+              )}
+            </div>
           )}
         </div>
       ) : (

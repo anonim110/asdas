@@ -12,12 +12,24 @@
 //
 // You can also override the remote target with the MURMUR_URL env var.
 
-const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, shell, dialog, desktopCapturer } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  Tray,
+  Menu,
+  nativeImage,
+  ipcMain,
+  shell,
+  dialog,
+  desktopCapturer,
+  systemPreferences,
+} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const crypto = require('crypto');
 const { fork } = require('child_process');
+const { scanRunningGame } = require('./game-detection');
 
 const REMOTE_URL = process.env.MURMUR_URL || 'https://murmur-social.onrender.com';
 const DEV_RENDERER_URL = 'http://localhost:5173';
@@ -34,6 +46,10 @@ let serverProcess = null;
 let mainWindow = null;
 let tray = null;
 let quitting = false;
+let gameTrackingEnabled = true;
+let gameTrackingTimer = null;
+let detectedGame = null;
+let gameScanRunning = false;
 
 const ICON_PATH = path.join(__dirname, 'build', 'icon.png');
 
@@ -45,6 +61,62 @@ function showMainWindow() {
 }
 
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function sendDetectedGame(game) {
+  detectedGame = game;
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('murmur:game-activity', game);
+  }
+}
+
+async function pollGameActivity() {
+  if (!gameTrackingEnabled || gameScanRunning) return;
+  gameScanRunning = true;
+  try {
+    const game = await scanRunningGame();
+    if (game !== detectedGame) sendDetectedGame(game);
+  } finally {
+    gameScanRunning = false;
+  }
+}
+
+function updateGameTracking(enabled) {
+  gameTrackingEnabled = enabled !== false;
+  if (!gameTrackingEnabled) {
+    sendDetectedGame(null);
+    return;
+  }
+  void pollGameActivity();
+}
+
+function startGameTracking() {
+  if (gameTrackingTimer) return;
+  void pollGameActivity();
+  gameTrackingTimer = setInterval(pollGameActivity, 15_000);
+}
+
+function mediaAccessStatus() {
+  const read = (type) => {
+    try {
+      return systemPreferences.getMediaAccessStatus(type);
+    } catch {
+      return 'unknown';
+    }
+  };
+  return { microphone: read('microphone'), camera: read('camera') };
+}
+
+function openMediaSettings(kind) {
+  if (process.platform === 'win32') {
+    shell.openExternal(kind === 'camera' ? 'ms-settings:privacy-webcam' : 'ms-settings:privacy-microphone');
+  } else if (process.platform === 'darwin') {
+    const pane =
+      kind === 'camera'
+        ? 'x-apple.systempreferences:com.apple.preference.security?Privacy_Camera'
+        : 'x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone';
+    shell.openExternal(pane);
+  }
+}
 
 // Branded splash / offline screen shown while connecting to the live site.
 function showSplash(offline) {
@@ -246,19 +318,37 @@ function createWindow(url, { devtools = false, defer = false } = {}) {
     'notifications',
     'clipboard-sanitized-write',
   ]);
-  const isTrustedOrigin = (value) => {
-    try {
-      return !!appOrigin && new URL(value).origin === appOrigin;
-    } catch {
-      return false;
-    }
+  const isTrustedPermissionRequest = (...values) => {
+    return values.some((value) => {
+      try {
+        return !!appOrigin && typeof value === 'string' && new URL(value).origin === appOrigin;
+      } catch {
+        return false;
+      }
+    });
   };
   mainWindow.webContents.session.setPermissionRequestHandler((wc, permission, cb, details) => {
-    const requestingUrl = details?.requestingUrl || wc.getURL();
-    cb(isTrustedOrigin(requestingUrl) && allowedPermissions.has(permission));
+    cb(
+      allowedPermissions.has(permission) &&
+        isTrustedPermissionRequest(
+          details?.requestingUrl,
+          details?.securityOrigin,
+          details?.embeddingOrigin,
+          wc?.getURL(),
+        ),
+    );
   });
-  mainWindow.webContents.session.setPermissionCheckHandler((_wc, permission, requestingOrigin) => {
-    return isTrustedOrigin(requestingOrigin) && allowedPermissions.has(permission);
+  mainWindow.webContents.session.setPermissionCheckHandler((wc, permission, requestingOrigin, details) => {
+    return (
+      allowedPermissions.has(permission) &&
+      isTrustedPermissionRequest(
+        requestingOrigin,
+        details?.requestingUrl,
+        details?.securityOrigin,
+        details?.embeddingOrigin,
+        wc?.getURL(),
+      )
+    );
   });
 
   // Screen sharing (getDisplayMedia) needs an explicit source in Electron;
@@ -273,6 +363,9 @@ function createWindow(url, { devtools = false, defer = false } = {}) {
   }
 
   mainWindow.once('ready-to-show', () => mainWindow.show());
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow?.webContents.send('murmur:game-activity', gameTrackingEnabled ? detectedGame : null);
+  });
 
   // Closing the window hides it to the tray instead of quitting.
   mainWindow.on('close', (event) => {
@@ -366,7 +459,22 @@ if (!app.requestSingleInstanceLock()) {
     if (mode === 'remote') connectRemote();
   });
 
-  app.whenReady().then(boot);
+  ipcMain.handle('murmur:game-activity:get', () => (gameTrackingEnabled ? detectedGame : null));
+  ipcMain.on('murmur:game-tracking:set', (_event, enabled) => updateGameTracking(enabled));
+  ipcMain.handle('murmur:media-access:status', () => mediaAccessStatus());
+  ipcMain.handle('murmur:media-access:request', async (_event, request = {}) => {
+    if (process.platform === 'darwin') {
+      if (request.audio) await systemPreferences.askForMediaAccess('microphone').catch(() => false);
+      if (request.video) await systemPreferences.askForMediaAccess('camera').catch(() => false);
+    }
+    return mediaAccessStatus();
+  });
+  ipcMain.on('murmur:media-settings:open', (_event, kind) => openMediaSettings(kind));
+
+  app.whenReady().then(async () => {
+    await boot();
+    startGameTracking();
+  });
 
   app.on('activate', () => {
     if (mainWindow) showMainWindow();
@@ -379,6 +487,10 @@ app.on('window-all-closed', () => {});
 
 app.on('before-quit', () => {
   quitting = true;
+  if (gameTrackingTimer) {
+    clearInterval(gameTrackingTimer);
+    gameTrackingTimer = null;
+  }
   if (serverProcess) {
     serverProcess.kill();
     serverProcess = null;

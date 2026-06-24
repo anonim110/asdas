@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { mediaErrorDetails, requestUserMedia } from '../lib/mediaAccess';
+import type { MediaAccessKind } from '../lib/desktop';
 
 // Persisted selection of the input devices used for calls. Device ids are
 // stable per browser/profile, so remembering them keeps the user's chosen
@@ -12,6 +14,8 @@ interface DeviceState {
   mics: MediaDeviceInfo[];
   cams: MediaDeviceInfo[];
   permission: 'unknown' | 'granted' | 'denied';
+  error: string | null;
+  settingsKind: MediaAccessKind | null;
   setMic: (id: string | null) => void;
   setCam: (id: string | null) => void;
   /** Enumerates the PC's audio/video inputs. Requests permission first so the
@@ -25,6 +29,8 @@ export const useDevices = create<DeviceState>((set) => ({
   mics: [],
   cams: [],
   permission: 'unknown',
+  error: null,
+  settingsKind: null,
 
   setMic: (id) => {
     if (id) localStorage.setItem(MIC_KEY, id);
@@ -41,11 +47,12 @@ export const useDevices = create<DeviceState>((set) => ({
     if (!navigator.mediaDevices?.enumerateDevices) return;
     // Briefly open a stream so the browser exposes device labels, then release it.
     try {
-      const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const probe = await requestUserMedia({ audio: true });
       probe.getTracks().forEach((t) => t.stop());
-      set({ permission: 'granted' });
-    } catch {
-      set({ permission: 'denied' });
+      set({ permission: 'granted', error: null, settingsKind: null });
+    } catch (error) {
+      const details = mediaErrorDetails(error);
+      set({ permission: 'denied', error: details.message, settingsKind: details.settingsKind });
     }
     try {
       const all = await navigator.mediaDevices.enumerateDevices();

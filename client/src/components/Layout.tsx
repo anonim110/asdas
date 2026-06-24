@@ -26,6 +26,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { RightSidebar } from './RightSidebar';
 import { ScrollToTop } from './ScrollToTop';
 import { RealtimeBridge } from './RealtimeBridge';
+import { DesktopActivityBridge } from './DesktopActivityBridge';
 import { CallOverlay } from './CallOverlay';
 import { QuickSearch } from './QuickSearch';
 import { UserName } from './UserName';
@@ -97,6 +98,7 @@ export function Layout() {
   return (
     <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-[1400px] overflow-x-clip sm:px-3 xl:px-6">
       <RealtimeBridge />
+      <DesktopActivityBridge />
       <CallOverlay />
 
       {/* Left navigation (desktop) */}

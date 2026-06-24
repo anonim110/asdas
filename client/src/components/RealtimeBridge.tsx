@@ -125,8 +125,10 @@ export function RealtimeBridge() {
 
     const onPresenceUpdate = (p: { userId: string; online: boolean; lastSeenAt?: string }) =>
       usePresence.getState().setOnline(p.userId, p.online, p.lastSeenAt);
-    const onPresenceState = (p: { online: string[] }) =>
-      usePresence.getState().setOnlineList(p.online);
+    const onPresenceState = (p: { online: string[]; activities?: Record<string, string> }) =>
+      usePresence.getState().setOnlineList(p.online, p.activities);
+    const onActivityUpdate = (p: { userId: string; game: string | null }) =>
+      usePresence.getState().setActivity(p.userId, p.game);
 
     socket.on('notification:count', onNotifCount);
     socket.on('notification:new', onNotifNew);
@@ -134,6 +136,7 @@ export function RealtimeBridge() {
     socket.on('dm:read', onDmRead);
     socket.on('presence:update', onPresenceUpdate);
     socket.on('presence:state', onPresenceState);
+    socket.on('activity:update', onActivityUpdate);
 
     return () => {
       cancelled = true;
@@ -144,6 +147,7 @@ export function RealtimeBridge() {
       s?.off('dm:read', onDmRead);
       s?.off('presence:update', onPresenceUpdate);
       s?.off('presence:state', onPresenceState);
+      s?.off('activity:update', onActivityUpdate);
     };
   }, [me?.id, queryClient, setNotifUnread, setDmUnread]);
 

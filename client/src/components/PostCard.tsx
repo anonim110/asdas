@@ -211,7 +211,7 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
             <span className="shrink-0 text-slate-500 hover:underline dark:text-slate-400">
               {relativeTime(display.createdAt)}
             </span>
-            <GameStatus status={display.author.gameStatus} className="hidden shrink-0 sm:inline-flex" />
+            <GameStatus userId={display.author.id} status={display.author.gameStatus} className="hidden shrink-0 sm:inline-flex" />
             {editedAt && (
               <span className="shrink-0 text-slate-500 dark:text-slate-400" title="Edited">
                 - edited

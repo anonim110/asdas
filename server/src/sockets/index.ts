@@ -5,7 +5,14 @@ import { prisma } from '../config/prisma';
 import { verifyAccessToken } from '../utils/jwt';
 import { setIO, userRoom } from './io';
 import { markConversationRead } from '../services/message.service';
-import { addConnection, removeConnection, isOnline } from './presence';
+import {
+  activityForUsers,
+  addConnection,
+  clearActivity,
+  removeConnection,
+  isOnline,
+  setActivity,
+} from './presence';
 
 // Initialises Socket.io on top of the existing HTTP server.
 // Authentication: the client passes its access token via `auth.token` in the
@@ -38,8 +45,16 @@ export function initSockets(httpServer: HttpServer): Server {
 
     // Reply with the current online state for a set of user ids.
     socket.on('presence:get', ({ userIds }: { userIds: string[] }) => {
-      const online = (Array.isArray(userIds) ? userIds : []).filter(isOnline);
-      socket.emit('presence:state', { online });
+      const requested = Array.isArray(userIds) ? userIds.filter((id) => typeof id === 'string').slice(0, 200) : [];
+      const online = requested.filter(isOnline);
+      socket.emit('presence:state', { online, activities: activityForUsers(requested) });
+    });
+
+    socket.on('activity:set', ({ game }: { game?: string | null }) => {
+      const normalized = typeof game === 'string' ? game.trim().slice(0, 60) : '';
+      if (normalized) setActivity(userId, normalized, socket.id);
+      else clearActivity(userId, socket.id);
+      io.emit('activity:update', { userId, game: normalized || null });
     });
 
     // Subscribe/unsubscribe to live engagement counts for a specific post.
@@ -129,8 +144,20 @@ export function initSockets(httpServer: HttpServer): Server {
       });
     });
 
-    socket.on('call:accept', relayCall('call:accepted'));
-    socket.on('call:reject', relayCall('call:rejected'));
+    socket.on('call:accept', (payload: { toUserId?: string } & Record<string, unknown>) => {
+      relayCall('call:accepted')(payload);
+      const { toUserId } = payload || {};
+      if (typeof toUserId === 'string') {
+        socket.to(userRoom(userId)).emit('call:answered-elsewhere', { fromUserId: toUserId });
+      }
+    });
+    socket.on('call:reject', (payload: { toUserId?: string } & Record<string, unknown>) => {
+      relayCall('call:rejected')(payload);
+      const { toUserId } = payload || {};
+      if (typeof toUserId === 'string') {
+        socket.to(userRoom(userId)).emit('call:canceled', { fromUserId: toUserId });
+      }
+    });
     socket.on('call:cancel', relayCall('call:canceled'));
     socket.on('call:end', relayCall('call:ended'));
     socket.on('call:busy', relayCall('call:busy'));
@@ -151,6 +178,9 @@ export function initSockets(httpServer: HttpServer): Server {
     });
 
     socket.on('disconnect', async () => {
+      if (clearActivity(userId, socket.id)) {
+        io.emit('activity:update', { userId, game: null });
+      }
       // Presence: on the user's last disconnect, persist "last seen" and
       // broadcast that they went offline.
       if (removeConnection(userId)) {

@@ -17,6 +17,8 @@ import { GameInviteCard } from '../components/GameInviteCard';
 import { VoiceMessage } from '../components/VoiceMessage';
 import { VideoCircle } from '../components/VideoCircle';
 import { GameStatus } from '../components/GameStatus';
+import { mediaErrorDetails, openMediaSettings, requestUserMedia } from '../lib/mediaAccess';
+import type { MediaAccessKind } from '../lib/desktop';
 import { relativeTime } from '../lib/format';
 import { encodeGameInvite, messagePreview, parseGameInvite } from '../lib/gameInvite';
 import {
@@ -40,6 +42,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
   const [isSending, setIsSending] = useState(false);
   const [typing, setTyping] = useState(false);
   const [error, setError] = useState('');
+  const [mediaSettingsKind, setMediaSettingsKind] = useState<MediaAccessKind | null>(null);
   const [image, setImage] = useState<{ file: File; preview: string } | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -286,12 +289,13 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
       return;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia(
+      const stream = await requestUserMedia(
         kind === 'audio'
           ? { audio: true }
           : { audio: true, video: { facingMode: 'user', width: { ideal: 480 }, height: { ideal: 480 } } },
       );
       recStreamRef.current = stream;
+      setMediaSettingsKind(null);
       recChunksRef.current = [];
       recCanceledRef.current = false;
       recKindRef.current = kind;
@@ -315,8 +319,10 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
           if (circlePreviewRef.current) circlePreviewRef.current.srcObject = stream;
         }, 0);
       }
-    } catch {
-      setError('Microphone / camera permission denied');
+    } catch (err) {
+      const details = mediaErrorDetails(err);
+      setError(details.message);
+      setMediaSettingsKind(details.settingsKind);
     }
   }
 
@@ -403,7 +409,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
             <p className="truncate font-extrabold text-slate-950 dark:text-white">{conversation.other.displayName}</p>
-            <GameStatus status={conversation.other.gameStatus} />
+            <GameStatus userId={conversation.other.id} status={conversation.other.gameStatus} />
           </div>
           <p className="truncate text-sm font-medium text-slate-500 dark:text-slate-400">
             {online ? (
@@ -615,7 +621,20 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
         <div ref={bottomRef} />
       </div>
 
-      {error && <p className="mx-3 mb-2 rounded-2xl bg-red-50 px-3 py-2 text-sm font-medium text-red-600 dark:bg-red-500/10 dark:text-red-300">{error}</p>}
+      {error && (
+        <div className="mx-3 mb-2 flex items-center justify-between gap-3 rounded-2xl bg-red-50 px-3 py-2 text-sm font-medium text-red-600 dark:bg-red-500/10 dark:text-red-300">
+          <span>{error}</span>
+          {mediaSettingsKind && (
+            <button
+              type="button"
+              onClick={() => openMediaSettings(mediaSettingsKind)}
+              className="shrink-0 rounded-full bg-red-600 px-3 py-1.5 text-xs font-bold text-white"
+            >
+              Open settings
+            </button>
+          )}
+        </div>
+      )}
 
       {image && (
         <div className="flex items-center gap-3 border-t border-slate-200/80 px-3 pt-3 dark:border-white/10">

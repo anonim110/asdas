@@ -3,6 +3,8 @@ import { getSocket } from '../lib/socket';
 import { useDevices } from './devices';
 import { useAuth } from './auth';
 import { startRingtone, stopRingtone } from '../lib/ringtone';
+import { mediaErrorDetails, requestUserMedia } from '../lib/mediaAccess';
+import type { MediaAccessKind } from '../lib/desktop';
 
 export type CallType = 'audio' | 'video';
 type CallStatus = 'idle' | 'outgoing' | 'incoming' | 'connecting' | 'active' | 'ended';
@@ -25,6 +27,7 @@ interface CallState {
   camEnabled: boolean;
   screenSharing: boolean;
   error: string | null;
+  mediaSettingsKind: MediaAccessKind | null;
   initialized: boolean;
 
   init: () => void;
@@ -41,9 +44,22 @@ interface CallState {
 
 // Public STUN keeps things working across most home networks. A production
 // deployment behind symmetric NATs would also configure a TURN relay here.
-const RTC_CONFIG: RTCConfiguration = {
-  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-};
+function rtcConfig(): RTCConfiguration {
+  const iceServers: RTCIceServer[] = [
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+  ];
+  const turnUrls = import.meta.env.VITE_TURN_URL?.split(',')
+    .map((url) => url.trim())
+    .filter(Boolean);
+  if (turnUrls?.length) {
+    iceServers.push({
+      urls: turnUrls,
+      username: import.meta.env.VITE_TURN_USERNAME || undefined,
+      credential: import.meta.env.VITE_TURN_CREDENTIAL || undefined,
+    });
+  }
+  return { iceServers, iceCandidatePoolSize: 6 };
+}
 
 // ── Module-scoped, non-reactive call internals ──
 let pc: RTCPeerConnection | null = null;
@@ -61,6 +77,7 @@ let cameraTrack: MediaStreamTrack | null = null;
 // silently never negotiated, so the camera "sometimes" doesn't appear.
 let makingOffer = false;
 let ignoreOffer = false;
+let iceRestartAttempted = false;
 
 function socket() {
   return getSocket();
@@ -98,7 +115,7 @@ async function getLocalMedia(type: CallType): Promise<MediaStream> {
   const { micId, camId } = useDevices.getState();
   const wantVideo = type === 'video';
   try {
-    return await navigator.mediaDevices.getUserMedia({
+    return await requestUserMedia({
       audio: micId ? { deviceId: { exact: micId } } : true,
       video: wantVideo ? (camId ? { deviceId: { exact: camId } } : true) : false,
     });
@@ -106,7 +123,7 @@ async function getLocalMedia(type: CallType): Promise<MediaStream> {
     // A previously-saved mic/camera may be unplugged; retry with the default
     // devices so the call still works instead of failing outright.
     if (micId || camId) {
-      return navigator.mediaDevices.getUserMedia({ audio: true, video: wantVideo });
+      return requestUserMedia({ audio: true, video: wantVideo });
     }
     throw err;
   }
@@ -128,7 +145,7 @@ export const useCall = create<CallState>((set, get) => {
   }
 
   // Tears down the peer connection + media and resets to idle.
-  function cleanup(message: string | null = null) {
+  function cleanup(message: string | null = null, mediaSettingsKind: MediaAccessKind | null = null) {
     clearCallTimeout();
     clearDisconnectTimer();
     stopRingtone();
@@ -149,6 +166,7 @@ export const useCall = create<CallState>((set, get) => {
     cameraTrack = null;
     makingOffer = false;
     ignoreOffer = false;
+    iceRestartAttempted = false;
     peerId = null;
     pendingCandidates = [];
 
@@ -163,12 +181,13 @@ export const useCall = create<CallState>((set, get) => {
         camEnabled: true,
         screenSharing: false,
         error: message,
+        mediaSettingsKind,
       });
       setTimeout(() => {
         if (get().status === 'ended') {
-          set({ status: 'idle', peer: null, error: null });
+          set({ status: 'idle', peer: null, error: null, mediaSettingsKind: null });
         }
-      }, 2200);
+      }, mediaSettingsKind ? 10_000 : 3000);
       return;
     }
 
@@ -181,12 +200,13 @@ export const useCall = create<CallState>((set, get) => {
       camEnabled: true,
       screenSharing: false,
       error: null,
+      mediaSettingsKind: null,
     });
   }
 
   // Builds the RTCPeerConnection, wiring ICE relay + remote track handling.
   function createPeer(localStream: MediaStream) {
-    const conn = new RTCPeerConnection(RTC_CONFIG);
+    const conn = new RTCPeerConnection(rtcConfig());
     localStream.getTracks().forEach((track) => conn.addTrack(track, localStream));
 
     conn.onicecandidate = (e) => {
@@ -205,9 +225,20 @@ export const useCall = create<CallState>((set, get) => {
       const state = pc.connectionState;
       if (state === 'connected') {
         clearDisconnectTimer();
+        iceRestartAttempted = false;
         set({ status: 'active' });
       } else if (state === 'failed') {
-        cleanup('Connection lost');
+        if (!iceRestartAttempted) {
+          iceRestartAttempted = true;
+          try {
+            pc.restartIce();
+            void makeOffer();
+          } catch {
+            cleanup('Connection lost');
+          }
+        } else {
+          cleanup('Connection lost');
+        }
       } else if (state === 'disconnected') {
         // A brief "disconnected" is usually a transient network blip that ICE
         // recovers from on its own. Only end the call if it doesn't come back.
@@ -242,6 +273,7 @@ export const useCall = create<CallState>((set, get) => {
     camEnabled: true,
     screenSharing: false,
     error: null,
+    mediaSettingsKind: null,
     initialized: false,
 
     init: () => {
@@ -338,6 +370,9 @@ export const useCall = create<CallState>((set, get) => {
         if (fromUserId !== peerId) return;
         cleanup('User is busy');
       });
+      s.on('call:answered-elsewhere', ({ fromUserId }: { fromUserId: string }) => {
+        if (fromUserId === peerId && get().status === 'incoming') cleanup();
+      });
     },
 
     startCall: async (peer, callType) => {
@@ -362,8 +397,9 @@ export const useCall = create<CallState>((set, get) => {
           socket()?.emit('call:cancel', { toUserId: peer.id });
           cleanup('No answer');
         }, 45_000);
-      } catch {
-        cleanup('Could not access your microphone/camera');
+      } catch (error) {
+        const details = mediaErrorDetails(error);
+        cleanup(details.message, details.settingsKind);
       }
     },
 
@@ -379,9 +415,10 @@ export const useCall = create<CallState>((set, get) => {
         pc = createPeer(localStream);
         set({ status: 'connecting', localStream, micEnabled: true, camEnabled: callType === 'video' });
         socket()?.emit('call:accept', { toUserId: peerId });
-      } catch {
+      } catch (error) {
         socket()?.emit('call:reject', { toUserId: peerId });
-        cleanup('Could not access your microphone/camera');
+        const details = mediaErrorDetails(error);
+        cleanup(details.message, details.settingsKind);
       }
     },
 
@@ -425,12 +462,12 @@ export const useCall = create<CallState>((set, get) => {
         const { camId } = useDevices.getState();
         let cam: MediaStream;
         try {
-          cam = await navigator.mediaDevices.getUserMedia({
+          cam = await requestUserMedia({
             video: camId ? { deviceId: { exact: camId } } : true,
           });
         } catch {
           // Saved camera unavailable → fall back to the default camera.
-          cam = await navigator.mediaDevices.getUserMedia({ video: true });
+          cam = await requestUserMedia({ video: true });
         }
         const track = cam.getVideoTracks()[0];
         if (!track) return;
@@ -439,11 +476,12 @@ export const useCall = create<CallState>((set, get) => {
         set({ localStream: stream, callType: 'video', camEnabled: true });
 
         await makeOffer();
-      } catch {
-        set({ error: 'Could not access your camera' });
+      } catch (error) {
+        const details = mediaErrorDetails(error);
+        set({ error: details.message, mediaSettingsKind: details.settingsKind });
         setTimeout(() => {
-          if (get().error === 'Could not access your camera') set({ error: null });
-        }, 2500);
+          if (get().error === details.message) set({ error: null, mediaSettingsKind: null });
+        }, details.settingsKind ? 10_000 : 3000);
       }
     },
 
@@ -519,7 +557,7 @@ export const useCall = create<CallState>((set, get) => {
       const { localStream, status } = get();
       if (!pc || !localStream || status === 'idle') return;
       try {
-        const fresh = await navigator.mediaDevices.getUserMedia({
+        const fresh = await requestUserMedia({
           audio: { deviceId: { exact: deviceId } },
         });
         const newTrack = fresh.getAudioTracks()[0];

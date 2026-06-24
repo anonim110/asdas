@@ -9,4 +9,14 @@ contextBridge.exposeInMainWorld('murmurDesktop', {
   platform: process.platform,
   focus: () => ipcRenderer.send('murmur:focus'),
   retry: () => ipcRenderer.send('murmur:retry'),
+  getGameActivity: () => ipcRenderer.invoke('murmur:game-activity:get'),
+  setGameTrackingEnabled: (enabled) => ipcRenderer.send('murmur:game-tracking:set', enabled),
+  onGameActivity: (callback) => {
+    const listener = (_event, game) => callback(game);
+    ipcRenderer.on('murmur:game-activity', listener);
+    return () => ipcRenderer.removeListener('murmur:game-activity', listener);
+  },
+  getMediaAccessStatus: () => ipcRenderer.invoke('murmur:media-access:status'),
+  requestMediaAccess: (request) => ipcRenderer.invoke('murmur:media-access:request', request),
+  openMediaSettings: (kind) => ipcRenderer.send('murmur:media-settings:open', kind),
 });
