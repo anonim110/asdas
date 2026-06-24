@@ -138,10 +138,8 @@ npm run dev                   # http://localhost:5173
 
 Open **http://localhost:5173** and create an account to get started.
 
-> **Password reset in dev:** there is no email provider configured, so
-> `POST /api/auth/forgot-password` returns the reset token directly in the JSON
-> response (only outside production). The Forgot-password screen surfaces a
-> "Continue to reset" link using it.
+> **Password reset in dev:** `POST /api/auth/forgot-password` returns the
+> six-digit reset code directly in the JSON. Production sends it by SMTP.
 
 ---
 
@@ -188,8 +186,8 @@ Base URL: `http://localhost:4000/api`
 | POST   | `/auth/refresh`         | Rotate refresh token → new access |
 | POST   | `/auth/logout`          | Revoke refresh token              |
 | GET    | `/auth/me`              | Current user                      |
-| POST   | `/auth/forgot-password` | Request reset token               |
-| POST   | `/auth/reset-password`  | Reset with token                  |
+| POST   | `/auth/forgot-password` | Request reset code                |
+| POST   | `/auth/reset-password`  | Reset with email code             |
 | POST   | `/auth/change-password` | Change while logged in            |
 
 ### Users

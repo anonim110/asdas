@@ -103,13 +103,13 @@ export async function me(req: Request, res: Response) {
 }
 
 export async function forgotPassword(req: Request, res: Response) {
-  const { token } = await authService.requestPasswordReset(req.body.email);
-  // `token` is only present in non-production for testing the reset flow.
-  res.json({ message: 'If that email exists, a reset link has been sent.', token });
+  const { code } = await authService.requestPasswordReset(req.body.identifier);
+  // `code` is only present outside production so the flow remains testable.
+  res.json({ message: 'If that account exists, a code has been sent to its email.', code });
 }
 
 export async function resetPassword(req: Request, res: Response) {
-  await authService.resetPassword(req.body.token, req.body.password);
+  await authService.resetPassword(req.body.identifier, req.body.code, req.body.password);
   res.json({ message: 'Password updated. Please sign in again.' });
 }
 

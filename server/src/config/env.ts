@@ -59,6 +59,15 @@ export const env = {
     clientRedirectBase: clientUrls[0] ?? 'http://localhost:5173',
   },
 
+  mail: {
+    host: process.env.SMTP_HOST ?? 'smtp.gmail.com',
+    port: Number(process.env.SMTP_PORT ?? 465),
+    secure: (process.env.SMTP_SECURE ?? 'true') === 'true',
+    user: process.env.SMTP_USER ?? '',
+    pass: process.env.SMTP_PASS ?? '',
+    from: process.env.MAIL_FROM ?? process.env.SMTP_USER ?? '',
+  },
+
   upload: {
     dir: process.env.UPLOAD_DIR ?? 'uploads',
     maxBytes: Number(process.env.MAX_UPLOAD_MB ?? 25) * 1024 * 1024,

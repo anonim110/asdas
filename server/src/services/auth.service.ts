@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { prisma } from '../config/prisma';
 import { ApiError } from '../utils/apiError';
 import { hashPassword, verifyPassword } from '../utils/password';
@@ -7,6 +8,7 @@ import {
   generateRefreshToken,
   hashToken,
 } from '../utils/jwt';
+import { sendPasswordResetCode } from './mail.service';
 
 function refreshExpiry(): Date {
   return new Date(Date.now() + env.jwt.refreshTtlDays * 24 * 60 * 60 * 1000);
@@ -232,30 +234,57 @@ export async function getMe(userId: string) {
   return toAuthUser(user);
 }
 
-// Generates a single-use password reset token. Without an email provider we
-// return the token directly (dev) so the flow is testable; in production this
-// would be emailed instead of returned.
-export async function requestPasswordReset(email: string) {
-  const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-  // Always behave the same to avoid leaking which emails are registered.
-  if (!user) return { token: null };
-
-  const token = generateRefreshToken();
-  await prisma.passwordResetToken.create({
-    data: {
-      tokenHash: hashToken(token),
-      userId: user.id,
-      expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
-    },
-  });
-  return { token: env.isProd ? null : token };
+function resetCodeHash(userId: string, code: string) {
+  return hashToken(`${userId}:${code}`);
 }
 
-export async function resetPassword(token: string, newPassword: string) {
-  const tokenHash = hashToken(token);
+// Sends a short-lived code while returning the same response for unknown
+// accounts so this endpoint cannot be used to discover registered users.
+export async function requestPasswordReset(identifier: string) {
+  const value = identifier.trim();
+  const user = await prisma.user.findFirst({
+    where: { OR: [{ email: value.toLowerCase() }, { username: value }] },
+    select: { id: true, email: true },
+  });
+  // Always behave the same to avoid leaking which emails are registered.
+  if (!user) return { code: null };
+
+  const code = String(crypto.randomInt(100000, 1000000));
+  await prisma.$transaction([
+    prisma.passwordResetToken.deleteMany({ where: { userId: user.id } }),
+    prisma.passwordResetToken.create({
+      data: {
+        tokenHash: resetCodeHash(user.id, code),
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      },
+    }),
+  ]);
+
+  if (env.isProd) {
+    try {
+      await sendPasswordResetCode(user.email, code);
+    } catch (error) {
+      await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+      throw error;
+    }
+  }
+
+  return { code: env.isProd ? null : code };
+}
+
+export async function resetPassword(identifier: string, code: string, newPassword: string) {
+  const value = identifier.trim();
+  const user = await prisma.user.findFirst({
+    where: { OR: [{ email: value.toLowerCase() }, { username: value }] },
+    select: { id: true },
+  });
+  if (!user) throw ApiError.badRequest('Invalid or expired reset code');
+
+  const tokenHash = resetCodeHash(user.id, code);
   const record = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
   if (!record || record.usedAt || record.expiresAt < new Date()) {
-    throw ApiError.badRequest('Invalid or expired reset token');
+    throw ApiError.badRequest('Invalid or expired reset code');
   }
 
   const passwordHash = await hashPassword(newPassword);

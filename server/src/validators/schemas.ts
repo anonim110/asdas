@@ -26,11 +26,12 @@ export const loginSchema = z.object({
 });
 
 export const forgotPasswordSchema = z.object({
-  email: z.string().email('Invalid email'),
+  identifier: z.string().trim().min(1, 'Email or username is required').max(100),
 });
 
 export const resetPasswordSchema = z.object({
-  token: z.string().min(1),
+  identifier: z.string().trim().min(1, 'Email or username is required').max(100),
+  code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
   password,
 });
 
