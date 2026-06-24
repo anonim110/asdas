@@ -23,6 +23,11 @@ export function postRoom(postId: string): string {
   return `post:${postId}`;
 }
 
+// Members viewing a community chat join `community:<id>` for live messages.
+export function communityRoom(communityId: string): string {
+  return `community:${communityId}`;
+}
+
 // Safe emit: a no-op if the socket layer is not ready yet (e.g. in tests).
 export function emitToUser(userId: string, event: string, payload: unknown) {
   if (!io) return;
@@ -32,4 +37,9 @@ export function emitToUser(userId: string, event: string, payload: unknown) {
 export function emitToPost(postId: string, event: string, payload: unknown) {
   if (!io) return;
   io.to(postRoom(postId)).emit(event, payload);
+}
+
+export function emitToCommunity(communityId: string, event: string, payload: unknown) {
+  if (!io) return;
+  io.to(communityRoom(communityId)).emit(event, payload);
 }

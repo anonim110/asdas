@@ -49,6 +49,20 @@ export function initSockets(httpServer: HttpServer): Server {
       if (typeof postId === 'string') socket.leave(`post:${postId}`);
     });
 
+    // Join / leave a community chat room for live group messages.
+    socket.on('community:join', ({ communityId }: { communityId: string }) => {
+      if (typeof communityId === 'string') socket.join(`community:${communityId}`);
+    });
+    socket.on('community:leave', ({ communityId }: { communityId: string }) => {
+      if (typeof communityId === 'string') socket.leave(`community:${communityId}`);
+    });
+    // Typing indicator inside a community chat.
+    socket.on('community:typing', ({ communityId }: { communityId: string }) => {
+      if (typeof communityId === 'string') {
+        socket.to(`community:${communityId}`).emit('community:typing', { communityId, userId });
+      }
+    });
+
     // Typing indicator within a DM conversation.
     socket.on('dm:typing', ({ toUserId }: { toUserId: string }) => {
       if (typeof toUserId === 'string') {

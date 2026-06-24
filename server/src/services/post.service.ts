@@ -4,6 +4,7 @@ import { ApiError } from '../utils/apiError';
 import { extractHashtags, extractMentions } from '../utils/textParser';
 import { postInclude, serializePost } from './serializers';
 import { createNotification, removeNotification } from './notification.service';
+import { assertCanPostTo } from './community.service';
 import { emitToPost } from '../sockets/io';
 
 export interface MediaInput {
@@ -19,6 +20,7 @@ interface CreatePostArgs {
   media?: MediaInput[];
   parentId?: string;
   quotedPostId?: string;
+  communityId?: string;
 }
 
 // Links hashtags and mentions found in `content` to the post, and notifies
@@ -70,6 +72,7 @@ export async function createPost({
   media,
   parentId,
   quotedPostId,
+  communityId,
 }: CreatePostArgs) {
   const trimmed = content?.trim() || undefined;
   if (!trimmed && (!media || media.length === 0)) {
@@ -85,6 +88,11 @@ export async function createPost({
     const quoted = await prisma.post.findUnique({ where: { id: quotedPostId } });
     if (!quoted) throw ApiError.notFound('Quoted post not found');
   }
+  // Posting into a community requires membership (top-level posts only).
+  if (communityId) {
+    if (parentId) throw ApiError.badRequest('Replies cannot target a community');
+    await assertCanPostTo(communityId, authorId);
+  }
 
   const post = await prisma.post.create({
     data: {
@@ -92,6 +100,7 @@ export async function createPost({
       content: trimmed,
       parentId,
       quotedPostId,
+      communityId,
       media: media?.length
         ? { create: media.map((m) => ({ url: m.url, type: m.type, width: m.width, height: m.height })) }
         : undefined,
@@ -294,6 +303,43 @@ export async function getCounts(postId: string) {
   // Broadcast to everyone currently viewing this post.
   emitToPost(postId, 'post:counts', result);
   return result;
+}
+
+// Detailed engagement analytics for a post. Author-only: surfaces reach and
+// interaction breakdowns plus a simple engagement rate.
+export async function getPostAnalytics(postId: string, userId: string) {
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+    select: {
+      authorId: true,
+      viewCount: true,
+      createdAt: true,
+      _count: {
+        select: { likes: true, reposts: true, replies: true, quotes: true, bookmarks: true },
+      },
+    },
+  });
+  if (!post) throw ApiError.notFound('Post not found');
+  if (post.authorId !== userId) throw ApiError.forbidden('You can only view analytics for your own posts');
+
+  const c = post._count;
+  const interactions = c.likes + c.reposts + c.replies + c.quotes + c.bookmarks;
+  const views = post.viewCount || 0;
+  // Engagement rate = interactions per view (capped, expressed as a percentage).
+  const engagementRate = views > 0 ? Math.min(100, (interactions / views) * 100) : 0;
+
+  return {
+    postId,
+    createdAt: post.createdAt,
+    views,
+    likes: c.likes,
+    reposts: c.reposts,
+    replies: c.replies,
+    quotes: c.quotes,
+    bookmarks: c.bookmarks,
+    interactions,
+    engagementRate: Math.round(engagementRate * 10) / 10,
+  };
 }
 
 export async function pinPost(postId: string, userId: string) {

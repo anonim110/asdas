@@ -58,6 +58,8 @@ export const createPostSchema = z.object({
   content: z.string().max(280, 'Posts are limited to 280 characters').optional(),
   parentId: z.string().cuid().optional(),
   quotedPostId: z.string().cuid().optional(),
+  // When set, the post is published into a community (group) feed.
+  communityId: z.string().cuid().optional(),
 });
 
 export const quoteSchema = z.object({
@@ -77,6 +79,23 @@ export const startConversationSchema = z.object({
 export const sendMessageSchema = z.object({
   // Optional because a message may be an image with no text.
   content: z.string().max(2000).optional(),
+});
+
+// ────────────────────── Communities ──────────────────────
+
+export const createCommunitySchema = z.object({
+  name: z.string().min(3, 'Name must be at least 3 characters').max(50),
+  slug: z
+    .string()
+    .max(30)
+    .regex(/^[a-zA-Z0-9-]+$/, 'Only letters, numbers and hyphens are allowed')
+    .optional(),
+  description: z.preprocess(emptyToNull, z.string().max(280).nullable().optional()),
+  isPrivate: z.coerce.boolean().optional(),
+});
+
+export const communityMessageSchema = z.object({
+  content: z.string().min(1, 'Message cannot be empty').max(2000),
 });
 
 // ───────────────── Pagination / queries ─────────────────

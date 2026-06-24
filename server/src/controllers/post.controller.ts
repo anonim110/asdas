@@ -27,6 +27,7 @@ export async function create(req: Request, res: Response) {
     content: req.body.content,
     parentId: req.body.parentId || undefined,
     quotedPostId: req.body.quotedPostId || undefined,
+    communityId: req.body.communityId || undefined,
     media,
   });
   res.status(201).json({ post });
@@ -40,6 +41,11 @@ export async function getOne(req: Request, res: Response) {
 export async function getThread(req: Request, res: Response) {
   const result = await postService.getThread(req.params.id, req.userId);
   res.json(result);
+}
+
+export async function analytics(req: Request, res: Response) {
+  const result = await postService.getPostAnalytics(req.params.id, req.userId!);
+  res.json({ analytics: result });
 }
 
 export async function getReplies(req: Request, res: Response) {

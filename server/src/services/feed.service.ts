@@ -24,6 +24,7 @@ export async function getHomeFeed(viewerId: string, cursor?: string, limit = PAG
   const where: Prisma.PostWhereInput = {
     authorId: { in: authorIds },
     parentId: null, // exclude replies from the home timeline
+    communityId: null, // community posts live in their own feed
   };
 
   const items = await prisma.post.findMany({
@@ -51,6 +52,7 @@ export async function getExploreFeed(viewerId: string | undefined, page = 0, lim
       createdAt: { gte: since },
       parentId: null,
       repostOfId: null,
+      communityId: null,
       ...(hidden.length ? { authorId: { notIn: hidden } } : {}),
     },
     include: postInclude(viewerId),

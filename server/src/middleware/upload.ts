@@ -1,9 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { NextFunction, Request, Response } from 'express';
 import multer from 'multer';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import { env } from '../config/env';
+import { prisma } from '../config/prisma';
 import { ApiError } from '../utils/apiError';
 
 export const uploadRoot = path.resolve(process.cwd(), env.upload.dir);
@@ -39,7 +41,10 @@ if (env.cloudinary.enabled) {
 }
 
 export const upload = multer({
-  storage: env.cloudinary.enabled ? multer.memoryStorage() : diskStorage,
+  storage:
+    env.cloudinary.enabled || env.isProd
+      ? multer.memoryStorage()
+      : diskStorage,
   limits: { fileSize: env.upload.maxBytes },
   fileFilter: (_req, file, cb) => {
     if (ALLOWED.has(file.mimetype)) cb(null, true);
@@ -77,6 +82,43 @@ export async function storeUploadedFile(file: Express.Multer.File): Promise<stri
     return result.secure_url;
   }
 
+  if (env.isProd) {
+    if (!file.buffer) throw new Error('Uploaded file is missing its memory buffer');
+    const stored = await prisma.storedUpload.create({
+      data: {
+        data: file.buffer,
+        mimeType: file.mimetype,
+        originalName: file.originalname.slice(0, 255),
+        size: file.size,
+      },
+      select: { id: true },
+    });
+    return `${env.apiUrl}${uploadPublicPath}/${stored.id}`;
+  }
+
   if (!file.filename) throw new Error('Uploaded file is missing its local filename');
   return `${env.apiUrl}${uploadPublicPath}/${file.filename}`;
+}
+
+export async function serveStoredUpload(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  const stored = await prisma.storedUpload.findUnique({
+    where: { id: req.params.id },
+    select: { data: true, mimeType: true, size: true },
+  });
+  if (!stored) {
+    next();
+    return;
+  }
+
+  res.set({
+    'Content-Type': stored.mimeType,
+    'Content-Length': String(stored.size),
+    'Cache-Control': 'public, max-age=31536000, immutable',
+    'X-Content-Type-Options': 'nosniff',
+  });
+  res.send(Buffer.from(stored.data));
 }

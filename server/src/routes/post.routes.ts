@@ -24,6 +24,7 @@ router.get('/bookmarks', requireAuth, validate({ query: cursorQuerySchema }), as
 
 router.get('/:id', optionalAuth, asyncHandler(post.getOne));
 router.get('/:id/thread', optionalAuth, asyncHandler(post.getThread));
+router.get('/:id/analytics', requireAuth, asyncHandler(post.analytics));
 router.get('/:id/replies', optionalAuth, validate({ query: cursorQuerySchema }), asyncHandler(post.getReplies));
 router.delete('/:id', requireAuth, asyncHandler(post.remove));
 router.patch('/:id', requireAuth, validate({ body: updatePostSchema }), asyncHandler(post.update));

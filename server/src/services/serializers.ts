@@ -7,6 +7,7 @@ export const authorSelect = {
   displayName: true,
   avatarUrl: true,
   bio: true,
+  verified: true,
   lastSeenAt: true,
 } satisfies Prisma.UserSelect;
 
@@ -17,6 +18,7 @@ function baseInclude(viewerId?: string): Prisma.PostInclude {
     author: { select: authorSelect },
     media: true,
     hashtags: { include: { hashtag: true } },
+    community: { select: { id: true, slug: true, name: true } },
     _count: { select: { likes: true, reposts: true, replies: true, quotes: true } },
   };
   if (viewerId) {
@@ -56,6 +58,9 @@ function serializeOne(p: AnyPost) {
       height: m.height,
     })),
     hashtags: (p.hashtags ?? []).map((h: AnyPost) => h.hashtag.tag),
+    community: p.community
+      ? { id: p.community.id, slug: p.community.slug, name: p.community.name }
+      : null,
     counts: {
       likes: p._count?.likes ?? 0,
       reposts: p._count?.reposts ?? 0,

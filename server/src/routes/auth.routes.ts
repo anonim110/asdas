@@ -21,6 +21,9 @@ router.post('/login', authLimiter, validate({ body: loginSchema }), asyncHandler
 router.post('/refresh', asyncHandler(auth.refresh));
 router.post('/logout', asyncHandler(auth.logout));
 router.get('/me', requireAuth, asyncHandler(auth.me));
+router.get('/sessions', requireAuth, asyncHandler(auth.listSessions));
+router.delete('/sessions/others', requireAuth, asyncHandler(auth.revokeOtherSessions));
+router.delete('/sessions/:id', requireAuth, asyncHandler(auth.revokeSession));
 router.post(
   '/forgot-password',
   authLimiter,

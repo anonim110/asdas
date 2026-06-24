@@ -5,6 +5,7 @@ import postRoutes from './post.routes';
 import feedRoutes from './feed.routes';
 import notificationRoutes from './notification.routes';
 import messageRoutes from './message.routes';
+import communityRoutes from './community.routes';
 import discoverRoutes from './discover.routes';
 
 const router = Router();
@@ -17,6 +18,7 @@ router.use('/posts', postRoutes);
 router.use('/feed', feedRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/conversations', messageRoutes);
+router.use('/communities', communityRoutes);
 router.use('/', discoverRoutes);
 
 export default router;

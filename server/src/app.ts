@@ -7,7 +7,12 @@ import { env } from './config/env';
 import routes from './routes';
 import { globalLimiter } from './middleware/rateLimit';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
-import { uploadPublicPath, uploadRoot } from './middleware/upload';
+import {
+  serveStoredUpload,
+  uploadPublicPath,
+  uploadRoot,
+} from './middleware/upload';
+import { asyncHandler } from './utils/asyncHandler';
 
 export function createApp() {
   const app = express();
@@ -35,7 +40,9 @@ export function createApp() {
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
 
-  // Serve uploaded media as static files.
+  // Production uploads are read from PostgreSQL when Cloudinary is absent.
+  // Local development continues to serve files from the uploads directory.
+  app.get(`${uploadPublicPath}/:id`, asyncHandler(serveStoredUpload));
   app.use(uploadPublicPath, express.static(uploadRoot));
 
   // Apply the global rate limiter to the API surface.

@@ -23,6 +23,8 @@ model User {
   passwordHash  String?
   googleId      String?  @unique
   emailVerified Boolean  @default(false)
+  // Verified ("blue check") badge, awarded to notable accounts.
+  verified      Boolean  @default(false)
   bio           String? // max length enforced by validation (160)
   link          String?
   location      String?
@@ -65,6 +67,11 @@ model User {
   conversationsB Conversation[] @relation("ConversationUserB")
   messagesSent   Message[]      @relation("MessageSender")
 
+  // Communities (groups)
+  communitiesOwned     Community[]        @relation("CommunityOwner")
+  communityMemberships CommunityMember[]
+  communityMessages    CommunityMessage[] @relation("CommunityMessageSender")
+
   @@index([username])
 }
 
@@ -75,6 +82,10 @@ model RefreshToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+  // Device/session metadata for the "active sessions" security screen.
+  userAgent String?
+  ip        String?
+  lastUsedAt DateTime @default(now())
 
   @@index([userId])
 }
@@ -89,6 +100,17 @@ model PasswordResetToken {
   createdAt DateTime  @default(now())
 
   @@index([userId])
+}
+
+// Persistent upload fallback for hosts with an ephemeral filesystem.
+// Cloudinary remains preferred when its credentials are configured.
+model StoredUpload {
+  id           String   @id @default(cuid())
+  data         Bytes
+  mimeType     String
+  originalName String?
+  size         Int
+  createdAt    DateTime @default(now())
 }
 
 // ───────────────────────────── Posts ─────────────────────────────
@@ -118,6 +140,10 @@ model Post {
   quotedPost   Post?   @relation("Quotes", fields: [quotedPostId], references: [id], onDelete: SetNull)
   quotes       Post[]  @relation("Quotes")
 
+  // Optional: a post published into a community (group) feed.
+  communityId String?
+  community   Community? @relation(fields: [communityId], references: [id], onDelete: SetNull)
+
   media     Media[]
   likes     Like[]
   bookmarks Bookmark[]
@@ -133,6 +159,8 @@ model Post {
   @@index([authorId, createdAt])
   @@index([parentId])
   @@index([repostOfId])
+  @@index([quotedPostId])
+  @@index([communityId, createdAt])
   @@index([createdAt])
 }
 
@@ -320,4 +348,55 @@ model Message {
   createdAt      DateTime     @default(now())
 
   @@index([conversationId, createdAt])
+}
+
+// ──────────────────── Communities (groups) ────────────────────
+
+model Community {
+  id          String  @id @default(cuid())
+  slug        String  @unique // url-safe handle, e.g. "design"
+  name        String
+  description String?
+  avatarUrl   String?
+  bannerUrl   String?
+  // Private communities require an explicit join (posts/chat hidden otherwise).
+  isPrivate   Boolean @default(false)
+
+  ownerId String
+  owner   User   @relation("CommunityOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members  CommunityMember[]
+  posts    Post[]
+  messages CommunityMessage[]
+
+  @@index([slug])
+}
+
+model CommunityMember {
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // One of: OWNER | MODERATOR | MEMBER.
+  role        String    @default("MEMBER")
+  joinedAt    DateTime  @default(now())
+
+  @@id([communityId, userId])
+  @@index([userId])
+}
+
+// Realtime group chat scoped to a community.
+model CommunityMessage {
+  id          String    @id @default(cuid())
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  senderId    String
+  sender      User      @relation("CommunityMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  content     String
+  createdAt   DateTime  @default(now())
+
+  @@index([communityId, createdAt])
 }

@@ -41,15 +41,21 @@ function clearGoogleStateCookie(res: Response) {
   res.clearCookie(GOOGLE_STATE_COOKIE, { path: '/api/auth/google' });
 }
 
+// Captures the requesting device's user-agent and IP for session tracking.
+function sessionMeta(req: Request) {
+  const ua = req.headers['user-agent'];
+  return { userAgent: typeof ua === 'string' ? ua : null, ip: req.ip ?? null };
+}
+
 export async function register(req: Request, res: Response) {
-  const { user, accessToken, refreshToken } = await authService.register(req.body);
+  const { user, accessToken, refreshToken } = await authService.register(req.body, sessionMeta(req));
   setRefreshCookie(res, refreshToken);
   res.status(201).json({ user, accessToken });
 }
 
 export async function login(req: Request, res: Response) {
   const { identifier, password } = req.body;
-  const { user, accessToken, refreshToken } = await authService.login(identifier, password);
+  const { user, accessToken, refreshToken } = await authService.login(identifier, password, sessionMeta(req));
   setRefreshCookie(res, refreshToken);
   res.json({ user, accessToken });
 }
@@ -76,7 +82,7 @@ export async function googleCallback(req: Request, res: Response) {
   }
 
   try {
-    const { refreshToken, isNew } = await authService.loginWithGoogle(code);
+    const { refreshToken, isNew } = await authService.loginWithGoogle(code, sessionMeta(req));
     setRefreshCookie(res, refreshToken);
     res.redirect(clientRedirect(isNew ? '/settings?welcome=google' : '/home?google=success'));
   } catch {
@@ -86,9 +92,24 @@ export async function googleCallback(req: Request, res: Response) {
 
 export async function refresh(req: Request, res: Response) {
   const token = req.cookies?.[REFRESH_COOKIE];
-  const { accessToken, refreshToken } = await authService.rotateRefresh(token);
+  const { accessToken, refreshToken } = await authService.rotateRefresh(token, sessionMeta(req));
   setRefreshCookie(res, refreshToken);
   res.json({ accessToken });
+}
+
+export async function listSessions(req: Request, res: Response) {
+  const sessions = await authService.listSessions(req.userId!, req.cookies?.[REFRESH_COOKIE]);
+  res.json({ sessions });
+}
+
+export async function revokeSession(req: Request, res: Response) {
+  await authService.revokeSession(req.userId!, req.params.id);
+  res.status(204).end();
+}
+
+export async function revokeOtherSessions(req: Request, res: Response) {
+  await authService.revokeOtherSessions(req.userId!, req.cookies?.[REFRESH_COOKIE]);
+  res.status(204).end();
 }
 
 export async function logout(req: Request, res: Response) {

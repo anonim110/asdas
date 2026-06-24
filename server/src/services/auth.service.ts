@@ -22,6 +22,7 @@ const meSelect = {
   passwordHash: true,
   googleId: true,
   emailVerified: true,
+  verified: true,
   bio: true,
   link: true,
   location: true,
@@ -39,12 +40,24 @@ function toAuthUser(user: any) {
   };
 }
 
+// Optional device metadata captured for the "active sessions" screen.
+export interface SessionMeta {
+  userAgent?: string | null;
+  ip?: string | null;
+}
+
 // Issues a short-lived access token plus a persisted, hashed refresh token.
-export async function issueTokens(userId: string) {
+export async function issueTokens(userId: string, meta: SessionMeta = {}) {
   const accessToken = signAccessToken(userId);
   const refreshToken = generateRefreshToken();
   await prisma.refreshToken.create({
-    data: { tokenHash: hashToken(refreshToken), userId, expiresAt: refreshExpiry() },
+    data: {
+      tokenHash: hashToken(refreshToken),
+      userId,
+      expiresAt: refreshExpiry(),
+      userAgent: meta.userAgent?.slice(0, 400) ?? null,
+      ip: meta.ip ?? null,
+    },
   });
   return { accessToken, refreshToken };
 }
@@ -56,7 +69,7 @@ interface RegisterArgs {
   password: string;
 }
 
-export async function register({ email, username, displayName, password }: RegisterArgs) {
+export async function register({ email, username, displayName, password }: RegisterArgs, meta?: SessionMeta) {
   const normalisedEmail = email.toLowerCase();
   const existing = await prisma.user.findFirst({
     where: { OR: [{ email: normalisedEmail }, { username }] },
@@ -72,11 +85,11 @@ export async function register({ email, username, displayName, password }: Regis
     data: { email: normalisedEmail, username, displayName, passwordHash, emailVerified: false },
     select: meSelect,
   });
-  const tokens = await issueTokens(user.id);
+  const tokens = await issueTokens(user.id, meta);
   return { user: toAuthUser(user), ...tokens };
 }
 
-export async function login(identifier: string, password: string) {
+export async function login(identifier: string, password: string, meta?: SessionMeta) {
   const value = identifier.trim();
   const user = await prisma.user.findFirst({
     where: { OR: [{ email: value.toLowerCase() }, { username: value }] },
@@ -87,7 +100,7 @@ export async function login(identifier: string, password: string) {
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) throw ApiError.unauthorized('Invalid credentials');
 
-  const tokens = await issueTokens(user.id);
+  const tokens = await issueTokens(user.id, meta);
   return { user: toAuthUser(user), ...tokens };
 }
 
@@ -168,7 +181,7 @@ async function uniqueUsername(email: string) {
   return `user_${generateRefreshToken().slice(0, 8)}`;
 }
 
-export async function loginWithGoogle(code: string) {
+export async function loginWithGoogle(code: string, meta?: SessionMeta) {
   const profile = await fetchGoogleProfile(code);
   const email = profile.email.toLowerCase();
   const displayName = (profile.name || email.split('@')[0] || 'Google user').slice(0, 50);
@@ -187,7 +200,7 @@ export async function loginWithGoogle(code: string) {
       },
       select: meSelect,
     });
-    const tokens = await issueTokens(user.id);
+    const tokens = await issueTokens(user.id, meta);
     return { user: toAuthUser(user), isNew: false, ...tokens };
   }
 
@@ -203,13 +216,14 @@ export async function loginWithGoogle(code: string) {
     },
     select: meSelect,
   });
-  const tokens = await issueTokens(user.id);
+  const tokens = await issueTokens(user.id, meta);
   return { user: toAuthUser(user), isNew: true, ...tokens };
 }
 
 // Validates a refresh token, rotates it (delete old, issue new), and returns
 // fresh tokens. Rotation limits the blast radius of a stolen refresh token.
-export async function rotateRefresh(refreshToken: string) {
+// Device metadata is carried over so a rotated session keeps its identity.
+export async function rotateRefresh(refreshToken: string, meta?: SessionMeta) {
   if (!refreshToken) throw ApiError.unauthorized('Missing refresh token');
   const tokenHash = hashToken(refreshToken);
   const stored = await prisma.refreshToken.findUnique({ where: { tokenHash } });
@@ -219,8 +233,46 @@ export async function rotateRefresh(refreshToken: string) {
   }
 
   await prisma.refreshToken.delete({ where: { tokenHash } });
-  const tokens = await issueTokens(stored.userId);
+  const tokens = await issueTokens(stored.userId, {
+    userAgent: meta?.userAgent ?? stored.userAgent,
+    ip: meta?.ip ?? stored.ip,
+  });
   return tokens;
+}
+
+// ─────────────────────── Active sessions ───────────────────────
+
+// Lists the user's live sessions (refresh tokens), flagging the current one.
+export async function listSessions(userId: string, currentRefreshToken?: string) {
+  const currentHash = currentRefreshToken ? hashToken(currentRefreshToken) : null;
+  const rows = await prisma.refreshToken.findMany({
+    where: { userId, expiresAt: { gt: new Date() } },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, tokenHash: true, userAgent: true, ip: true, createdAt: true, lastUsedAt: true },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    userAgent: r.userAgent,
+    ip: r.ip,
+    createdAt: r.createdAt,
+    lastUsedAt: r.lastUsedAt,
+    current: currentHash !== null && r.tokenHash === currentHash,
+  }));
+}
+
+// Revokes a single session by id (cannot revoke the one in use here — the
+// caller should hit logout for that). Returns false if not found / not owned.
+export async function revokeSession(userId: string, sessionId: string) {
+  const result = await prisma.refreshToken.deleteMany({ where: { id: sessionId, userId } });
+  return result.count > 0;
+}
+
+// Revokes every session except the current one ("log out everywhere else").
+export async function revokeOtherSessions(userId: string, currentRefreshToken?: string) {
+  const currentHash = currentRefreshToken ? hashToken(currentRefreshToken) : undefined;
+  await prisma.refreshToken.deleteMany({
+    where: { userId, ...(currentHash ? { tokenHash: { not: currentHash } } : {}) },
+  });
 }
 
 export async function logout(refreshToken?: string) {
@@ -244,10 +296,11 @@ export async function requestPasswordReset(identifier: string) {
   const value = identifier.trim();
   const user = await prisma.user.findFirst({
     where: { OR: [{ email: value.toLowerCase() }, { username: value }] },
-    select: { id: true, email: true },
+    select: { id: true, email: true, passwordHash: true },
   });
   // Always behave the same to avoid leaking which emails are registered.
-  if (!user) return { code: null };
+  // Google-only accounts create a password from authenticated settings.
+  if (!user?.passwordHash) return { code: null };
 
   const code = String(crypto.randomInt(100000, 1000000));
   await prisma.$transaction([
