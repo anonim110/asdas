@@ -262,21 +262,29 @@ export async function rotateRefresh(refreshToken: string, meta?: SessionMeta) {
 
   // Replay of an already-revoked token → likely theft. Burn the family.
   if (stored.revokedAt) {
-    await revokeFamily(stored.sessionId);
+    if (stored.sessionId) await revokeFamily(stored.sessionId);
     throw ApiError.unauthorized('Session reuse detected — please sign in again');
   }
 
+  const sessionId = stored.sessionId ?? stored.id;
+
   if (stored.expiresAt < new Date()) {
-    await prisma.refreshToken.update({ where: { tokenHash }, data: { revokedAt: new Date() } });
+    await prisma.refreshToken.update({
+      where: { tokenHash },
+      data: { sessionId, revokedAt: new Date() },
+    });
     throw ApiError.unauthorized('Invalid or expired session');
   }
 
   // Rotate: soft-revoke the presented token, issue a new one in the same family.
-  await prisma.refreshToken.update({ where: { tokenHash }, data: { revokedAt: new Date() } });
+  await prisma.refreshToken.update({
+    where: { tokenHash },
+    data: { sessionId, revokedAt: new Date() },
+  });
   return issueTokens(
     stored.userId,
     { userAgent: meta?.userAgent ?? stored.userAgent, ip: meta?.ip ?? stored.ip },
-    stored.sessionId,
+    sessionId,
   );
 }
 
@@ -287,9 +295,9 @@ async function currentSessionId(currentRefreshToken?: string): Promise<string | 
   if (!currentRefreshToken) return null;
   const row = await prisma.refreshToken.findUnique({
     where: { tokenHash: hashToken(currentRefreshToken) },
-    select: { sessionId: true },
+    select: { id: true, sessionId: true },
   });
-  return row?.sessionId ?? null;
+  return row ? row.sessionId ?? row.id : null;
 }
 
 // Lists the user's active session families (one entry per login), flagging the
@@ -299,7 +307,7 @@ export async function listSessions(userId: string, currentRefreshToken?: string)
   const rows = await prisma.refreshToken.findMany({
     where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
     orderBy: { lastUsedAt: 'desc' },
-    select: { sessionId: true, userAgent: true, ip: true, createdAt: true, lastUsedAt: true },
+    select: { id: true, sessionId: true, userAgent: true, ip: true, createdAt: true, lastUsedAt: true },
   });
 
   // Collapse a family's rotated tokens into a single session entry.
@@ -313,15 +321,16 @@ export async function listSessions(userId: string, currentRefreshToken?: string)
     current: boolean;
   }> = [];
   for (const r of rows) {
-    if (seen.has(r.sessionId)) continue;
-    seen.add(r.sessionId);
+    const sessionId = r.sessionId ?? r.id;
+    if (seen.has(sessionId)) continue;
+    seen.add(sessionId);
     sessions.push({
-      id: r.sessionId,
+      id: sessionId,
       userAgent: r.userAgent,
       ip: r.ip,
       createdAt: r.createdAt,
       lastUsedAt: r.lastUsedAt,
-      current: currentSid !== null && r.sessionId === currentSid,
+      current: currentSid !== null && sessionId === currentSid,
     });
   }
   return sessions;
@@ -330,7 +339,11 @@ export async function listSessions(userId: string, currentRefreshToken?: string)
 // Revokes an entire session family by its id ("log out this device").
 export async function revokeSession(userId: string, sessionId: string) {
   const result = await prisma.refreshToken.updateMany({
-    where: { sessionId, userId, revokedAt: null },
+    where: {
+      userId,
+      revokedAt: null,
+      OR: [{ sessionId }, { id: sessionId, sessionId: null }],
+    },
     data: { revokedAt: new Date() },
   });
   return result.count > 0;
@@ -340,7 +353,18 @@ export async function revokeSession(userId: string, sessionId: string) {
 export async function revokeOtherSessions(userId: string, currentRefreshToken?: string) {
   const currentSid = await currentSessionId(currentRefreshToken);
   await prisma.refreshToken.updateMany({
-    where: { userId, revokedAt: null, ...(currentSid ? { sessionId: { not: currentSid } } : {}) },
+    where: {
+      userId,
+      revokedAt: null,
+      ...(currentSid
+        ? {
+            OR: [
+              { sessionId: { not: null }, NOT: { sessionId: currentSid } },
+              { sessionId: null, NOT: { id: currentSid } },
+            ],
+          }
+        : {}),
+    },
     data: { revokedAt: new Date() },
   });
 }

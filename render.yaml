@@ -18,7 +18,6 @@ services:
       npm ci --include=dev &&
       sed -i 's/provider = "sqlite"/provider = "postgresql"/' prisma/schema.prisma &&
       npx prisma generate &&
-      npx prisma db execute --file prisma/production/20260624_refresh_token_rotation.sql --schema prisma/schema.prisma &&
       npx prisma db push --accept-data-loss &&
       npm run build
     startCommand: node dist/index.js
