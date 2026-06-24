@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Send, ImagePlus, Smile, X, Phone, Video } from 'lucide-react';
+import { ArrowLeft, Send, ImagePlus, Smile, X, Phone, Video, Search, Gamepad2 } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { useAuth } from '../store/auth';
@@ -11,7 +11,10 @@ import { useCall } from '../store/call';
 import { Avatar } from '../components/Avatar';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { Lightbox } from '../components/Lightbox';
+import { Modal } from '../components/Modal';
+import { GameInviteCard } from '../components/GameInviteCard';
 import { relativeTime } from '../lib/format';
+import { encodeGameInvite, messagePreview, parseGameInvite } from '../lib/gameInvite';
 import type { Conversation, Media, Message } from '../types';
 
 export function ChatPanel({ conversation }: { conversation: Conversation }) {
@@ -28,8 +31,13 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
   const [image, setImage] = useState<{ file: File; preview: string } | null>(null);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [gameInviteOpen, setGameInviteOpen] = useState(false);
+  const [gameInvite, setGameInvite] = useState({ game: '', mode: '', startsAt: '', note: '' });
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeout = useRef<ReturnType<typeof setTimeout>>();
 
   const online = usePresence((s) => s.online[conversation.other.id]);
@@ -50,7 +58,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
         ...existing,
         lastMessage: {
           id: message.id,
-          content: message.content || (message.imageUrl ? 'Image' : ''),
+          content: messagePreview(message.content) || (message.imageUrl ? 'Image' : ''),
           imageUrl: message.imageUrl,
           senderId: message.senderId,
           createdAt: message.createdAt,
@@ -143,14 +151,8 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
     setNextCursor(data.nextCursor);
   }
 
-  async function send(e: React.FormEvent) {
-    e.preventDefault();
-    const content = text.trim();
-    const img = image;
-    if ((!content && !img) || isSending) return;
-    setText('');
-    setImage(null);
-    setEmojiOpen(false);
+  async function deliver(content: string, img: typeof image): Promise<boolean> {
+    if ((!content && !img) || isSending) return false;
     setError('');
     setIsSending(true);
     try {
@@ -168,12 +170,37 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
       appendMessage(data.message);
       refreshConversationPreview(data.message);
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 30);
+      return true;
     } catch (err) {
       setError(errorMessage(err, 'Could not send message'));
-      setText(content);
-      setImage(img);
+      return false;
     } finally {
       setIsSending(false);
+    }
+  }
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault();
+    const content = text.trim();
+    const img = image;
+    if ((!content && !img) || isSending) return;
+    setText('');
+    setImage(null);
+    setEmojiOpen(false);
+    const sent = await deliver(content, img);
+    if (!sent) {
+      setText(content);
+      setImage(img);
+    }
+  }
+
+  async function sendGameInvite(e: React.FormEvent) {
+    e.preventDefault();
+    if (!gameInvite.game.trim() || isSending) return;
+    const sent = await deliver(encodeGameInvite(gameInvite), null);
+    if (sent) {
+      setGameInviteOpen(false);
+      setGameInvite({ game: '', mode: '', startsAt: '', note: '' });
     }
   }
 
@@ -186,16 +213,30 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
     getSocket()?.emit('dm:typing', { toUserId: conversation.other.id });
   }
 
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const visibleMessages = normalizedSearch
+    ? messages.filter((message) => {
+        const invite = parseGameInvite(message.content);
+        return [
+          message.content,
+          invite?.game,
+          invite?.mode,
+          invite?.startsAt,
+          invite?.note,
+        ].some((value) => value?.toLowerCase().includes(normalizedSearch));
+      })
+    : messages;
+
   return (
-    <div className="flex h-[100dvh] flex-col">
-      <div className="glass-bar sticky top-0 z-10 flex min-h-16 items-center gap-3 px-3 py-3 sm:px-4">
+    <div className="flex h-[100dvh] min-h-0 min-w-0 flex-col overflow-hidden">
+      <div className="glass-bar safe-top z-10 flex min-h-16 shrink-0 items-center gap-2 px-2 py-2 sm:gap-3 sm:px-4 sm:py-3">
         <Link to="/messages" className="-ml-1 icon-button md:hidden" aria-label="Back to conversations">
           <ArrowLeft size={20} />
         </Link>
         <Avatar user={conversation.other} showPresence />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="truncate font-extrabold text-slate-950 dark:text-white">{conversation.other.displayName}</p>
-          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+          <p className="truncate text-sm font-medium text-slate-500 dark:text-slate-400">
             {online ? (
               <span className="text-green-600 dark:text-green-400">Active now</span>
             ) : lastSeen ? (
@@ -207,7 +248,16 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
         </div>
 
         {/* Voice / video call this friend */}
-        <div className="ml-auto flex items-center gap-1">
+        <div className="flex shrink-0 items-center">
+          <button
+            type="button"
+            onClick={() => setSearchOpen((open) => !open)}
+            className="icon-button text-brand"
+            aria-label="Search conversation"
+            title="Search"
+          >
+            <Search size={19} />
+          </button>
           <button
             onClick={() => startCall(conversation.other, 'audio')}
             className="icon-button text-brand"
@@ -227,14 +277,38 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-4">
+      {searchOpen && (
+        <div className="glass-bar shrink-0 px-3 py-2">
+          <div className="search-field min-h-11">
+            <Search size={17} className="shrink-0 text-slate-400" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search messages"
+              className="min-w-0 flex-1 bg-transparent outline-none"
+              autoFocus
+            />
+            {searchQuery && (
+              <button type="button" onClick={() => setSearchQuery('')} className="icon-button min-h-9 min-w-9" aria-label="Clear search">
+                <X size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-4">
         {nextCursor && (
           <button onClick={loadOlder} className="mx-auto mb-4 block rounded-full px-4 py-2 text-sm font-bold text-brand hover:bg-rose-50 dark:hover:bg-white/[0.06]">
             Load older messages
           </button>
         )}
-        {messages.map((m) => {
+        {normalizedSearch && visibleMessages.length === 0 && (
+          <p className="py-10 text-center text-sm text-slate-500">No matching messages.</p>
+        )}
+        {visibleMessages.map((m) => {
           const mine = m.senderId === me?.id;
+          const invite = parseGameInvite(m.content);
           return (
             <div key={m.id} className={`mb-2 flex ${mine ? 'justify-end' : 'justify-start'}`}>
               <div
@@ -252,7 +326,18 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
                     alt=""
                   />
                 )}
-                {m.content && <p className="whitespace-pre-wrap break-words px-3 py-1 leading-6">{m.content}</p>}
+                {invite ? (
+                  <GameInviteCard
+                    invite={invite}
+                    mine={mine}
+                    onJoin={() => {
+                      setText(`I'm in for ${invite.game}${invite.mode ? ` - ${invite.mode}` : ''}.`);
+                      setTimeout(() => inputRef.current?.focus(), 0);
+                    }}
+                  />
+                ) : (
+                  m.content && <p className="whitespace-pre-wrap break-words px-3 py-1 leading-6">{m.content}</p>
+                )}
                 <p className={`px-3 pb-1 text-[11px] ${mine ? 'text-white/75' : 'text-slate-500 dark:text-slate-400'}`}>
                   {relativeTime(m.createdAt)}
                   {mine && m.readAt ? ' - Read' : ''}
@@ -281,11 +366,20 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
 
       <form
         onSubmit={send}
-        className="flex items-end gap-1.5 border-t border-slate-200/80 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur-xl dark:border-white/10 dark:bg-[#07080f]/95 sm:px-3"
+        className="glass-strong flex min-w-0 shrink-0 items-end gap-1 border-x-0 border-b-0 px-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2 sm:gap-1.5 sm:px-3 sm:pt-3"
       >
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => pickImage(e.target.files?.[0])} />
         <button type="button" onClick={() => fileRef.current?.click()} className="icon-button shrink-0 text-brand" aria-label="Attach image">
           <ImagePlus size={20} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setGameInviteOpen(true)}
+          className="icon-button shrink-0 text-brand"
+          aria-label="Create game invite"
+          title="Game invite"
+        >
+          <Gamepad2 size={20} />
         </button>
         <div className="relative shrink-0">
           <button type="button" onClick={() => setEmojiOpen((o) => !o)} className="icon-button text-brand" aria-label="Add emoji">
@@ -294,6 +388,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
           {emojiOpen && <EmojiPicker onPick={(emoji) => setText((t) => t + emoji)} onClose={() => setEmojiOpen(false)} />}
         </div>
         <textarea
+          ref={inputRef}
           value={text}
           onChange={onInput}
           onKeyDown={(e) => {
@@ -304,7 +399,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
           }}
           rows={1}
           placeholder="Start a new message"
-          className="input max-h-32 min-h-11 flex-1 resize-none rounded-2xl leading-6"
+          className="input max-h-32 min-h-11 min-w-0 flex-1 resize-none rounded-2xl px-3 leading-6"
         />
         <button
           type="submit"
@@ -322,6 +417,55 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
           onClose={() => setLightboxUrl(null)}
         />
       )}
+
+      <Modal open={gameInviteOpen} onClose={() => setGameInviteOpen(false)} title="Invite to game">
+        <form onSubmit={sendGameInvite} className="space-y-4 pt-2">
+          <label className="block">
+            <span className="mb-1 block text-sm font-bold">Game</span>
+            <input
+              className="input"
+              value={gameInvite.game}
+              onChange={(e) => setGameInvite((current) => ({ ...current, game: e.target.value }))}
+              maxLength={60}
+              placeholder="Valorant, Minecraft, CS2..."
+              autoFocus
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-sm font-bold">Mode or squad</span>
+            <input
+              className="input"
+              value={gameInvite.mode}
+              onChange={(e) => setGameInvite((current) => ({ ...current, mode: e.target.value }))}
+              maxLength={60}
+              placeholder="Ranked duo, raid, casual..."
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-sm font-bold">When</span>
+            <input
+              className="input"
+              value={gameInvite.startsAt}
+              onChange={(e) => setGameInvite((current) => ({ ...current, startsAt: e.target.value }))}
+              maxLength={80}
+              placeholder="Tonight at 20:00"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-sm font-bold">Note</span>
+            <textarea
+              className="input min-h-20 resize-none"
+              value={gameInvite.note}
+              onChange={(e) => setGameInvite((current) => ({ ...current, note: e.target.value }))}
+              maxLength={240}
+              placeholder="Need one support player. Voice chat on."
+            />
+          </label>
+          <button type="submit" className="btn-primary w-full" disabled={!gameInvite.game.trim() || isSending}>
+            <Gamepad2 size={18} /> {isSending ? 'Sending...' : 'Send squad invite'}
+          </button>
+        </form>
+      </Modal>
     </div>
   );
 }

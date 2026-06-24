@@ -28,6 +28,7 @@ export function initSockets(httpServer: HttpServer): Server {
 
   io.on('connection', (socket) => {
     const userId = socket.data.userId as string;
+    const joinedCommunities = new Set<string>();
     socket.join(userRoom(userId));
 
     // Presence: announce online status on the first connection for this user.
@@ -50,15 +51,27 @@ export function initSockets(httpServer: HttpServer): Server {
     });
 
     // Join / leave a community chat room for live group messages.
-    socket.on('community:join', ({ communityId }: { communityId: string }) => {
-      if (typeof communityId === 'string') socket.join(`community:${communityId}`);
+    socket.on('community:join', async ({ communityId }: { communityId: string }) => {
+      if (typeof communityId !== 'string') return;
+      const membership = await prisma.communityMember
+        .findUnique({
+          where: { communityId_userId: { communityId, userId } },
+          select: { userId: true },
+        })
+        .catch(() => null);
+      if (!membership) return;
+      joinedCommunities.add(communityId);
+      socket.join(`community:${communityId}`);
     });
     socket.on('community:leave', ({ communityId }: { communityId: string }) => {
-      if (typeof communityId === 'string') socket.leave(`community:${communityId}`);
+      if (typeof communityId === 'string') {
+        joinedCommunities.delete(communityId);
+        socket.leave(`community:${communityId}`);
+      }
     });
     // Typing indicator inside a community chat.
     socket.on('community:typing', ({ communityId }: { communityId: string }) => {
-      if (typeof communityId === 'string') {
+      if (typeof communityId === 'string' && joinedCommunities.has(communityId)) {
         socket.to(`community:${communityId}`).emit('community:typing', { communityId, userId });
       }
     });

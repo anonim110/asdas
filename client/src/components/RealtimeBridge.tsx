@@ -7,6 +7,7 @@ import { useAuth } from '../store/auth';
 import { useRealtime } from '../store/realtime';
 import { usePresence } from '../store/presence';
 import { showNativeNotification } from '../lib/notify';
+import { messagePreview } from '../lib/gameInvite';
 import type { Conversation, Message, Notification as Notif } from '../types';
 
 // Human-readable text + deep link for a realtime notification.
@@ -88,7 +89,7 @@ export function RealtimeBridge() {
             const sender = conv?.other;
             showNativeNotification({
               title: sender?.displayName || sender?.username || 'New message',
-              body: p.message.content || (p.message.imageUrl ? '📷 Photo' : 'Sent you a message'),
+              body: messagePreview(p.message.content) || (p.message.imageUrl ? 'Photo' : 'Sent you a message'),
               icon: sender?.avatarUrl ?? null,
               navigateTo: `/messages/${p.conversationId}`,
               tag: `dm-${p.conversationId}`,

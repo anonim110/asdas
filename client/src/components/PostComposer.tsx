@@ -16,6 +16,7 @@ interface Props {
   placeholder?: string;
   parentId?: string;
   quotedPostId?: string;
+  communityId?: string;
   autoFocus?: boolean;
   compact?: boolean;
   onPosted?: (post: Post) => void;
@@ -31,6 +32,7 @@ export function PostComposer({
   placeholder = "What's happening?",
   parentId,
   quotedPostId,
+  communityId,
   autoFocus,
   compact,
   onPosted,
@@ -71,6 +73,7 @@ export function PostComposer({
       if (text.trim()) form.append('content', text.trim());
       if (parentId) form.append('parentId', parentId);
       if (quotedPostId) form.append('quotedPostId', quotedPostId);
+      if (communityId) form.append('communityId', communityId);
       files.forEach((f) => form.append('media', f.file));
 
       const { data } = await api.post<{ post: Post }>('/posts', form, {
@@ -81,6 +84,7 @@ export function PostComposer({
       setFiles([]);
       // Refresh feeds / threads that may now include this post.
       queryClient.invalidateQueries({ queryKey: ['feed'] });
+      if (communityId) queryClient.invalidateQueries({ queryKey: ['community-feed'] });
       if (parentId) {
         queryClient.invalidateQueries({ queryKey: ['thread', parentId] });
         queryClient.invalidateQueries({ queryKey: ['post', parentId] });

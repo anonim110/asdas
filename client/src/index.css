@@ -51,10 +51,12 @@ html,
 body,
 #root {
   height: 100%;
+  min-width: 0;
 }
 
 body {
   @apply bg-slate-100 text-slate-950 dark:bg-[#05060c] dark:text-slate-100;
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -191,6 +193,12 @@ button {
   }
   .mobile-safe-pad {
     padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
+  }
+  .mobile-content-pad {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 5rem);
+  }
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
   }
 }
 

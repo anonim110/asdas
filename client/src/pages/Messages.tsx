@@ -11,6 +11,7 @@ import { Spinner } from '../components/Spinner';
 import { ChatPanel } from './ChatPanel';
 import { UserName } from '../components/UserName';
 import type { Conversation } from '../types';
+import { messagePreview } from '../lib/gameInvite';
 
 export function Messages() {
   const { id } = useParams();
@@ -39,9 +40,9 @@ export function Messages() {
   }, [conversations]);
 
   return (
-    <div className="grid h-[100dvh] grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+    <div className="grid h-[100dvh] min-h-0 min-w-0 grid-cols-1 overflow-hidden md:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.4fr)]">
       <div
-        className={`overflow-y-auto border-r border-slate-200/80 pb-20 dark:border-white/10 sm:pb-0 ${
+        className={`min-h-0 min-w-0 overflow-y-auto border-r border-slate-200/80 mobile-content-pad dark:border-white/10 lg:pb-0 ${
           id ? 'hidden md:block' : ''
         }`}
       >
@@ -75,7 +76,7 @@ export function Messages() {
                   <p className="truncate text-sm text-slate-500 dark:text-slate-400">
                     {c.lastMessage
                       ? `${c.lastMessage.senderId === me?.id ? 'You: ' : ''}${
-                          c.lastMessage.content ?? (c.lastMessage.imageUrl ? 'Photo' : '')
+                          messagePreview(c.lastMessage.content) || (c.lastMessage.imageUrl ? 'Photo' : '')
                         }`
                       : 'No messages yet'}
                   </p>
@@ -87,7 +88,7 @@ export function Messages() {
         )}
       </div>
 
-      <div className={id ? '' : 'hidden md:block'}>
+      <div className={`min-h-0 min-w-0 overflow-hidden ${id ? '' : 'hidden md:block'}`}>
         {active ? (
           <ChatPanel conversation={active} />
         ) : (

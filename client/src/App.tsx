@@ -21,6 +21,8 @@ import { Bookmarks } from './pages/Bookmarks';
 import { Search } from './pages/Search';
 import { Hashtag } from './pages/Hashtag';
 import { NotFound } from './pages/NotFound';
+import { Communities } from './pages/Communities';
+import { CommunityDetail } from './pages/CommunityDetail';
 
 export default function App() {
   const bootstrap = useAuth((s) => s.bootstrap);
@@ -50,6 +52,8 @@ export default function App() {
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/messages/:id" element={<Messages />} />
+            <Route path="/communities" element={<Communities />} />
+            <Route path="/communities/:slug" element={<CommunityDetail />} />
             <Route path="/search" element={<Search />} />
             <Route path="/hashtag/:tag" element={<Hashtag />} />
             <Route path="/settings" element={<Settings />} />

@@ -12,6 +12,8 @@ import {
   LogOut,
   MoreHorizontal,
   Search,
+  Gamepad2,
+  Menu,
 } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { useRealtime } from '../store/realtime';
@@ -43,9 +45,12 @@ export function Layout() {
   const { notifUnread, dmUnread } = useRealtime();
   const [compose, setCompose] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [mobileMenu, setMobileMenu] = useState(false);
   const [quickSearch, setQuickSearch] = useState(false);
   const isMessagesRoute = location.pathname.startsWith('/messages');
   const isChatRoute = /^\/messages\/[^/]+/.test(location.pathname);
+  const isCommunityDetailRoute = /^\/communities\/[^/]+/.test(location.pathname);
+  const showMobileComposer = !isChatRoute && !isCommunityDetailRoute;
 
   useEffect(() => {
     const openSearch = (event: KeyboardEvent) => {
@@ -81,6 +86,7 @@ export function Layout() {
   const items: NavItem[] = [
     { to: '/home', label: 'Home', icon: Home },
     { to: '/explore', label: 'Explore', icon: Hash },
+    { to: '/communities', label: 'Servers', icon: Gamepad2 },
     { to: '/notifications', label: 'Notifications', icon: Bell, badge: notifUnread },
     { to: '/messages', label: 'Messages', icon: Mail, badge: dmUnread },
     { to: '/bookmarks', label: 'Bookmarks', icon: Bookmark },
@@ -89,12 +95,12 @@ export function Layout() {
   ];
 
   return (
-    <div className="mx-auto flex max-w-[1400px] sm:px-3 xl:px-6">
+    <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-[1400px] overflow-x-clip sm:px-3 xl:px-6">
       <RealtimeBridge />
       <CallOverlay />
 
       {/* Left navigation (desktop) */}
-      <header className="sticky top-0 hidden h-screen shrink-0 flex-col justify-between px-2 py-4 sm:flex xl:w-[285px]">
+      <header className="sticky top-0 hidden h-screen shrink-0 flex-col justify-between px-2 py-4 lg:flex xl:w-[285px]">
         <div className="flex flex-col items-center xl:items-start">
           <NavLink
             to="/home"
@@ -182,11 +188,11 @@ export function Layout() {
 
       {/* Main content — keyed by route for a subtle fade on navigation */}
       <main
-        className={`glass min-h-screen w-full sm:rounded-none ${
+        className={`glass mx-auto min-h-dvh min-w-0 w-full sm:rounded-none lg:mx-0 ${
           isMessagesRoute ? 'max-w-[920px]' : 'max-w-[600px]'
         }`}
       >
-        <div key={location.pathname} className={`animate-page-enter ${isChatRoute ? '' : 'pb-16 sm:pb-0'}`}>
+        <div key={location.pathname} className={`min-w-0 animate-page-enter ${isChatRoute ? '' : 'mobile-content-pad lg:pb-0'}`}>
           <Outlet />
         </div>
       </main>
@@ -195,8 +201,10 @@ export function Layout() {
 
       {/* Mobile bottom navigation */}
       {!isChatRoute && (
-        <nav className="glass-strong mobile-safe-pad fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 px-1 pt-1 sm:hidden">
-          {items.slice(0, 4).map((item) => (
+        <nav className="glass-strong mobile-safe-pad fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 px-1 pt-1 lg:hidden">
+          {items
+            .filter((item) => ['/home', '/explore', '/communities', '/messages'].includes(item.to))
+            .map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -225,25 +233,28 @@ export function Layout() {
               )}
             </NavLink>
           ))}
-          <NavLink
-            to={`/${user.username}`}
-            className={({ isActive }) =>
-              `flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-2xl transition duration-200 ${
-                isActive ? 'bg-rose-50 dark:bg-white/[0.07]' : ''
-              }`
-            }
+          <button
+            type="button"
+            onClick={() => setMobileMenu(true)}
+            className="relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] font-bold text-slate-500 transition active:bg-rose-50 dark:active:bg-white/[0.07]"
+            aria-label="Open account menu"
           >
-            <Avatar user={user} size="sm" linkable={false} />
-            <span className="text-[11px] font-bold text-slate-500">Profile</span>
-          </NavLink>
+            <span className="relative flex h-8 min-w-12 items-center justify-center rounded-full">
+              <Menu size={22} />
+              {(notifUnread > 0) && (
+                <span className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full bg-accent ring-2 ring-white dark:ring-[#07080f]" />
+              )}
+            </span>
+            <span>More</span>
+          </button>
         </nav>
       )}
 
       {/* Floating compose button (mobile) */}
-      {!isChatRoute && (
+      {showMobileComposer && (
         <button
           onClick={() => setCompose(true)}
-          className="btn-primary fixed bottom-20 right-4 z-40 h-14 w-14 rounded-full p-0 sm:hidden"
+          className="btn-primary fixed bottom-20 right-4 z-40 h-14 w-14 rounded-full p-0 lg:hidden"
           aria-label="Create post"
         >
           <Feather size={22} />
@@ -254,6 +265,36 @@ export function Layout() {
 
       <Modal open={compose} onClose={() => setCompose(false)} title="">
         <PostComposer autoFocus onPosted={() => setCompose(false)} />
+      </Modal>
+      <Modal open={mobileMenu} onClose={() => setMobileMenu(false)} title="Your Murmur">
+        <div className="grid gap-2 pb-2">
+          {[
+            { to: `/${user.username}`, label: 'Profile', icon: User },
+            { to: '/notifications', label: 'Notifications', icon: Bell, badge: notifUnread },
+            { to: '/bookmarks', label: 'Bookmarks', icon: Bookmark },
+            { to: '/settings', label: 'Settings', icon: Settings },
+          ].map((item) => (
+            <button
+              key={item.to}
+              type="button"
+              onClick={() => {
+                setMobileMenu(false);
+                navigate(item.to);
+              }}
+              className="flex min-h-14 items-center gap-3 rounded-2xl px-3 text-left font-bold transition active:bg-rose-50 dark:active:bg-white/[0.07]"
+            >
+              <span className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-white/[0.07] dark:text-slate-200">
+                <item.icon size={21} />
+                {!!item.badge && item.badge > 0 && (
+                  <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-accent px-1 text-center text-[11px] text-white">
+                    {item.badge > 99 ? '99+' : item.badge}
+                  </span>
+                )}
+              </span>
+              {item.label}
+            </button>
+          ))}
+        </div>
       </Modal>
       <QuickSearch open={quickSearch} onClose={() => setQuickSearch(false)} />
     </div>

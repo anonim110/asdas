@@ -127,6 +127,35 @@ export interface Message {
   createdAt: string;
 }
 
+export interface Community {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  avatarUrl: string | null;
+  bannerUrl: string | null;
+  isPrivate: boolean;
+  ownerId: string;
+  memberCount: number;
+  postCount: number;
+  isMember: boolean;
+  role: 'OWNER' | 'MODERATOR' | 'MEMBER' | null;
+  createdAt: string;
+}
+
+export interface CommunityMember extends UserSummary {
+  role: 'OWNER' | 'MODERATOR' | 'MEMBER';
+}
+
+export interface CommunityMessage {
+  id: string;
+  communityId: string;
+  senderId: string;
+  sender: UserSummary;
+  content: string;
+  createdAt: string;
+}
+
 export interface Trend {
   tag: string;
   count: number;
