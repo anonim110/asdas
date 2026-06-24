@@ -41,6 +41,12 @@ function required(name: string, fallback?: string): string {
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   isProd: process.env.NODE_ENV === 'production',
+  // Desktop (Electron) mode: the API and the renderer share the same
+  // http://localhost origin, so cookies must stay non-secure/Lax and the
+  // CSP must not upgrade requests to https. Set DESKTOP=1 when launched by
+  // the Electron shell (which still runs the server with NODE_ENV=production
+  // so the built client is served and uploads are persisted in the database).
+  isDesktop: process.env.DESKTOP === '1',
   port: Number(process.env.PORT ?? 4000),
   apiUrl,
   clientUrls,

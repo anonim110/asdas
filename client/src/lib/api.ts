@@ -6,9 +6,18 @@ function normalizeOrigin(value: string): string {
   return `https://${trimmed}`;
 }
 
+// An explicit VITE_API_URL wins; otherwise fall back to the page's own origin
+// in production (same-origin web deploy and the Electron desktop shell, which
+// loads the app from http://localhost:4000) and to the local API in dev. An
+// empty/whitespace value is treated as "not set" so the desktop build can
+// override the web .env with a blank VITE_API_URL.
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 const API_ORIGIN = normalizeOrigin(
-  import.meta.env.VITE_API_URL ??
-    (import.meta.env.PROD ? window.location.origin : 'http://localhost:4000'),
+  configuredApiUrl
+    ? configuredApiUrl
+    : import.meta.env.PROD
+      ? window.location.origin
+      : 'http://localhost:4000',
 );
 
 export const api = axios.create({

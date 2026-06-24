@@ -47,8 +47,10 @@ export function createApp() {
           'object-src': ["'none'"],
           'base-uri': ["'self'"],
           'form-action': ["'self'"],
-          // Only force HTTPS upgrades in production (dev runs over http).
-          ...(env.isProd ? {} : { 'upgrade-insecure-requests': null }),
+          // Only force HTTPS upgrades in production over real HTTPS. Dev and
+          // the desktop app both run over plain http://localhost, where
+          // upgrade-insecure-requests would break every API/socket request.
+          ...(env.isProd && !env.isDesktop ? {} : { 'upgrade-insecure-requests': null }),
         },
       },
       hsts: env.isProd ? { maxAge: 15552000, includeSubDomains: true } : false,

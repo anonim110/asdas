@@ -156,7 +156,9 @@ export function CallOverlay() {
                 {micEnabled ? <Mic size={22} /> : <MicOff size={22} />}
               </button>
 
-              {isVideo && (
+              {/* Camera toggle: shown for video calls, and for voice calls once
+                  connected so you can switch on your camera mid-call. */}
+              {(isVideo || status === 'active') && (
                 <button
                   onClick={toggleCam}
                   className={`flex h-14 w-14 items-center justify-center rounded-full transition active:scale-95 ${

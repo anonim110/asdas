@@ -66,6 +66,16 @@ export function Layout() {
     return () => window.removeEventListener('keydown', openSearch);
   }, []);
 
+  // Deep-link from a clicked OS notification (fired by lib/notify).
+  useEffect(() => {
+    const onNavigate = (event: Event) => {
+      const path = (event as CustomEvent<string>).detail;
+      if (typeof path === 'string') navigate(path);
+    };
+    window.addEventListener('murmur:navigate', onNavigate);
+    return () => window.removeEventListener('murmur:navigate', onNavigate);
+  }, [navigate]);
+
   if (!user) return null;
 
   const items: NavItem[] = [

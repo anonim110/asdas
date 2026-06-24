@@ -6,14 +6,17 @@ import { env } from '../config/env';
 const REFRESH_COOKIE = 'refreshToken';
 const GOOGLE_STATE_COOKIE = 'googleOAuthState';
 
+// On the web the frontend and API live on different sites, so credentialed
+// cross-site requests need SameSite=None + Secure. The desktop app serves both
+// from the same http://localhost origin, where a Secure cookie would be dropped
+// — there we fall back to the plain Lax/insecure cookie used in development.
+const crossSiteCookies = env.isProd && !env.isDesktop;
+
 function setRefreshCookie(res: Response, token: string) {
   res.cookie(REFRESH_COOKIE, token, {
     httpOnly: true,
-    // In production the frontend and API are on different origins,
-    // sites, so the cookie must be SameSite=None + Secure to be sent on
-    // cross-site credentialed requests. Locally we keep Lax.
-    secure: env.isProd,
-    sameSite: env.isProd ? 'none' : 'lax',
+    secure: crossSiteCookies,
+    sameSite: crossSiteCookies ? 'none' : 'lax',
     path: '/api/auth',
     maxAge: env.jwt.refreshTtlDays * 24 * 60 * 60 * 1000,
   });
@@ -30,7 +33,7 @@ function clientRedirect(path: string) {
 function setGoogleStateCookie(res: Response, state: string) {
   res.cookie(GOOGLE_STATE_COOKIE, state, {
     httpOnly: true,
-    secure: env.isProd,
+    secure: crossSiteCookies,
     sameSite: 'lax',
     path: '/api/auth/google',
     maxAge: 10 * 60 * 1000,

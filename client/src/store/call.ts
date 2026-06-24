@@ -47,6 +47,8 @@ let peerId: string | null = null; // the other user's id, for signalling
 let pendingCandidates: RTCIceCandidateInit[] = [];
 let boundSocket: ReturnType<typeof getSocket> = null;
 let callTimeout: ReturnType<typeof setTimeout> | null = null;
+// Grace timer for transient ICE "disconnected" blips before we give up.
+let disconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
 function socket() {
   return getSocket();
@@ -73,9 +75,17 @@ export const useCall = create<CallState>((set, get) => {
     }
   }
 
+  function clearDisconnectTimer() {
+    if (disconnectTimer) {
+      clearTimeout(disconnectTimer);
+      disconnectTimer = null;
+    }
+  }
+
   // Tears down the peer connection + media and resets to idle.
   function cleanup(message: string | null = null) {
     clearCallTimeout();
+    clearDisconnectTimer();
     stopRingtone();
     if (pc) {
       pc.onicecandidate = null;
@@ -133,13 +143,31 @@ export const useCall = create<CallState>((set, get) => {
     };
     conn.ontrack = (e) => {
       const [stream] = e.streams;
-      if (stream) set({ remoteStream: stream, status: 'active' });
+      if (!stream) return;
+      const patch: Partial<CallState> = { remoteStream: stream, status: 'active' };
+      // If the other side turns their camera on mid-call, switch to video UI.
+      if (e.track.kind === 'video') patch.callType = 'video';
+      set(patch);
     };
     conn.onconnectionstatechange = () => {
       if (!pc) return;
-      if (pc.connectionState === 'connected') set({ status: 'active' });
-      if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+      const state = pc.connectionState;
+      if (state === 'connected') {
+        clearDisconnectTimer();
+        set({ status: 'active' });
+      } else if (state === 'failed') {
         cleanup('Connection lost');
+      } else if (state === 'disconnected') {
+        // A brief "disconnected" is usually a transient network blip that ICE
+        // recovers from on its own. Only end the call if it doesn't come back.
+        if (!disconnectTimer) {
+          disconnectTimer = setTimeout(() => {
+            disconnectTimer = null;
+            if (pc && (pc.connectionState === 'disconnected' || pc.connectionState === 'failed')) {
+              cleanup('Connection lost');
+            }
+          }, 8000);
+        }
       }
     };
     return conn;
@@ -274,6 +302,9 @@ export const useCall = create<CallState>((set, get) => {
     accept: async () => {
       const { status, callType } = get();
       if (status !== 'incoming') return;
+      // Cancel the 45s auto-reject armed while ringing — otherwise it fires
+      // mid-conversation and drops the answered call after ~45 seconds.
+      clearCallTimeout();
       stopRingtone();
       try {
         const localStream = await getLocalMedia(callType);
@@ -306,12 +337,42 @@ export const useCall = create<CallState>((set, get) => {
       set({ micEnabled: next });
     },
 
-    toggleCam: () => {
+    toggleCam: async () => {
       const stream = get().localStream;
       if (!stream) return;
-      const next = !get().camEnabled;
-      stream.getVideoTracks().forEach((t) => (t.enabled = next));
-      set({ camEnabled: next });
+
+      // If we already have a camera track (video call), just flip it on/off.
+      const videoTracks = stream.getVideoTracks();
+      if (videoTracks.length > 0) {
+        const next = !get().camEnabled;
+        videoTracks.forEach((t) => (t.enabled = next));
+        set({ camEnabled: next });
+        return;
+      }
+
+      // Otherwise this is a voice call: acquire the camera, add it to the
+      // connection and renegotiate so the other side starts receiving video.
+      if (!pc || get().status !== 'active') return;
+      try {
+        const { camId } = useDevices.getState();
+        const cam = await navigator.mediaDevices.getUserMedia({
+          video: camId ? { deviceId: { exact: camId } } : true,
+        });
+        const track = cam.getVideoTracks()[0];
+        if (!track) return;
+        stream.addTrack(track);
+        pc.addTrack(track, stream);
+        set({ localStream: stream, callType: 'video', camEnabled: true });
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        signal(pc.localDescription);
+      } catch {
+        set({ error: 'Could not access your camera' });
+        setTimeout(() => {
+          if (get().error === 'Could not access your camera') set({ error: null });
+        }, 2500);
+      }
     },
 
     // Live-switch the microphone mid-call (and remember the choice).

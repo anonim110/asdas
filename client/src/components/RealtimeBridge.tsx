@@ -6,7 +6,27 @@ import { playMessageSound } from '../lib/sound';
 import { useAuth } from '../store/auth';
 import { useRealtime } from '../store/realtime';
 import { usePresence } from '../store/presence';
-import type { Conversation, Message } from '../types';
+import { requestNotifyPermission, showNativeNotification } from '../lib/notify';
+import type { Conversation, Message, Notification as Notif } from '../types';
+
+// Human-readable text + deep link for a realtime notification.
+function describeNotification(n: Notif): { body: string; navigateTo: string } {
+  const action: Record<Notif['type'], string> = {
+    LIKE: 'liked your post',
+    REPOST: 'reposted your post',
+    QUOTE: 'quoted your post',
+    REPLY: 'replied to your post',
+    MENTION: 'mentioned you',
+    FOLLOW: 'started following you',
+  };
+  const navigateTo =
+    n.type === 'FOLLOW'
+      ? `/${n.actor.username}`
+      : n.post
+        ? `/post/${n.post.id}`
+        : '/notifications';
+  return { body: action[n.type] ?? 'interacted with you', navigateTo };
+}
 
 // Mounted once for authenticated users. Wires Socket.io events to the global
 // unread badges and the React Query cache, and seeds the initial counts.
@@ -33,12 +53,28 @@ export function RealtimeBridge() {
       }
     })();
 
+    // Ask for OS notification permission (granted by default in the desktop app).
+    requestNotifyPermission();
+
     const socket = connectSocket();
 
     const onNotifCount = (p: { unread: number }) => setNotifUnread(p.unread);
-    const onNotifNew = () => queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    const onNotifNew = (n: Notif) => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      if (n?.actor && n.actor.id !== me?.id) {
+        const { body, navigateTo } = describeNotification(n);
+        showNativeNotification({
+          title: n.actor.displayName || `@${n.actor.username}`,
+          body,
+          icon: n.actor.avatarUrl,
+          navigateTo,
+          tag: `notif-${n.id}`,
+        });
+      }
+    };
     const onDmNew = (p: { conversationId: string; message: Message }) => {
-      if (p.message.senderId !== me?.id) {
+      const fromOther = p.message.senderId !== me?.id;
+      if (fromOther) {
         playMessageSound();
       }
 
@@ -48,6 +84,19 @@ export function RealtimeBridge() {
         .then(({ data }) => {
           queryClient.setQueryData(['conversations'], data.conversations);
           setDmUnread(data.conversations.reduce((s, c) => s + c.unread, 0));
+
+          // Telegram-style toast for messages that arrive while we're away.
+          if (fromOther) {
+            const conv = data.conversations.find((c) => c.id === p.conversationId);
+            const sender = conv?.other;
+            showNativeNotification({
+              title: sender?.displayName || sender?.username || 'New message',
+              body: p.message.content || (p.message.imageUrl ? '📷 Photo' : 'Sent you a message'),
+              icon: sender?.avatarUrl ?? null,
+              navigateTo: `/messages/${p.conversationId}`,
+              tag: `dm-${p.conversationId}`,
+            });
+          }
         })
         .catch(() => {
           queryClient.invalidateQueries({ queryKey: ['conversations'] });

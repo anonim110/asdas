@@ -412,7 +412,10 @@ export async function requestPasswordReset(identifier: string) {
     }),
   ]);
 
-  if (env.isProd) {
+  // The desktop app has no mail server, so surface the code directly (as in
+  // development) instead of trying to email it.
+  const deliverByEmail = env.isProd && !env.isDesktop;
+  if (deliverByEmail) {
     try {
       await sendPasswordResetCode(user.email, code);
     } catch (error) {
@@ -421,7 +424,7 @@ export async function requestPasswordReset(identifier: string) {
     }
   }
 
-  return { code: env.isProd ? null : code };
+  return { code: deliverByEmail ? null : code };
 }
 
 export async function resetPassword(identifier: string, code: string, newPassword: string) {
