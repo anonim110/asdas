@@ -44,6 +44,7 @@ export function createApp() {
   // Local development continues to serve files from the uploads directory.
   app.get(`${uploadPublicPath}/:id`, asyncHandler(serveStoredUpload));
   app.use(uploadPublicPath, express.static(uploadRoot));
+  app.use(uploadPublicPath, notFoundHandler);
 
   // Apply the global rate limiter to the API surface.
   app.use('/api', globalLimiter, routes);
