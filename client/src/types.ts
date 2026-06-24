@@ -109,6 +109,8 @@ export interface Conversation {
     id: string;
     content: string | null;
     imageUrl?: string | null;
+    audioUrl?: string | null;
+    videoNoteUrl?: string | null;
     senderId: string;
     createdAt: string;
     readAt: string | null;
@@ -123,6 +125,9 @@ export interface Message {
   senderId: string;
   content: string | null;
   imageUrl: string | null;
+  audioUrl?: string | null;
+  videoNoteUrl?: string | null;
+  mediaDurationMs?: number | null;
   readAt: string | null;
   createdAt: string;
 }

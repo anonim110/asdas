@@ -24,14 +24,24 @@ export async function getMessages(req: Request, res: Response) {
 }
 
 export async function sendMessage(req: Request, res: Response) {
-  const file = req.file as Express.Multer.File | undefined;
-  const imageUrl = file ? await storeUploadedFile(file) : undefined;
-  const message = await messageService.sendMessage(
-    req.params.id,
-    req.userId!,
-    req.body.content ?? '',
+  const files = (req.files ?? {}) as Record<string, Express.Multer.File[]>;
+  const pick = (field: string) => files[field]?.[0];
+
+  const [imageUrl, audioUrl, videoNoteUrl] = await Promise.all([
+    pick('image') ? storeUploadedFile(pick('image')!) : undefined,
+    pick('audio') ? storeUploadedFile(pick('audio')!) : undefined,
+    pick('videoNote') ? storeUploadedFile(pick('videoNote')!) : undefined,
+  ]);
+
+  const durationMs =
+    typeof req.body.durationMs === 'number' ? req.body.durationMs : undefined;
+
+  const message = await messageService.sendMessage(req.params.id, req.userId!, req.body.content ?? '', {
     imageUrl,
-  );
+    audioUrl,
+    videoNoteUrl,
+    mediaDurationMs: durationMs,
+  });
   res.status(201).json({ message });
 }
 

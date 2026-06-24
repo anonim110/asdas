@@ -49,6 +49,8 @@ function shapeConversation(c: any, viewerId: string) {
           id: c.messages[0].id,
           content: c.messages[0].content,
           imageUrl: c.messages[0].imageUrl ?? null,
+          audioUrl: c.messages[0].audioUrl ?? null,
+          videoNoteUrl: c.messages[0].videoNoteUrl ?? null,
           senderId: c.messages[0].senderId,
           createdAt: c.messages[0].createdAt,
           readAt: c.messages[0].readAt,
@@ -123,20 +125,39 @@ export async function getMessages(conversationId: string, userId: string, cursor
   return { items: page, nextCursor: hasMore ? page[page.length - 1].id : null };
 }
 
+interface MessageAttachments {
+  imageUrl?: string;
+  audioUrl?: string;
+  videoNoteUrl?: string;
+  mediaDurationMs?: number;
+}
+
 export async function sendMessage(
   conversationId: string,
   senderId: string,
   content: string,
-  imageUrl?: string,
+  attachments: MessageAttachments = {},
 ) {
   const conv = await assertParticipant(conversationId, senderId);
   const text = content.trim();
-  if (!text && !imageUrl) throw ApiError.badRequest('Message cannot be empty');
+  const { imageUrl, audioUrl, videoNoteUrl, mediaDurationMs } = attachments;
+  const hasMedia = Boolean(imageUrl || audioUrl || videoNoteUrl);
+  if (!text && !hasMedia) throw ApiError.badRequest('Message cannot be empty');
   const otherId = conv.userAId === senderId ? conv.userBId : conv.userAId;
   await ensureNotBlocked(senderId, otherId);
 
   const [message] = await prisma.$transaction([
-    prisma.message.create({ data: { conversationId, senderId, content: text || null, imageUrl } }),
+    prisma.message.create({
+      data: {
+        conversationId,
+        senderId,
+        content: text || null,
+        imageUrl,
+        audioUrl,
+        videoNoteUrl,
+        mediaDurationMs: mediaDurationMs ?? null,
+      },
+    }),
     prisma.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } }),
   ]);
 

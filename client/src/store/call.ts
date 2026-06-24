@@ -22,6 +22,7 @@ interface CallState {
   remoteStream: MediaStream | null;
   micEnabled: boolean;
   camEnabled: boolean;
+  screenSharing: boolean;
   error: string | null;
   initialized: boolean;
 
@@ -32,6 +33,8 @@ interface CallState {
   hangup: () => void;
   toggleMic: () => void;
   toggleCam: () => void;
+  shareScreen: () => Promise<void>;
+  stopScreenShare: () => Promise<void>;
   switchMic: (deviceId: string) => Promise<void>;
 }
 
@@ -49,6 +52,8 @@ let boundSocket: ReturnType<typeof getSocket> = null;
 let callTimeout: ReturnType<typeof setTimeout> | null = null;
 // Grace timer for transient ICE "disconnected" blips before we give up.
 let disconnectTimer: ReturnType<typeof setTimeout> | null = null;
+// While screen-sharing, the camera track is parked here so it can be restored.
+let cameraTrack: MediaStreamTrack | null = null;
 
 function socket() {
   return getSocket();
@@ -100,6 +105,8 @@ export const useCall = create<CallState>((set, get) => {
     }
     get().localStream?.getTracks().forEach((t) => t.stop());
     get().remoteStream?.getTracks().forEach((t) => t.stop());
+    cameraTrack?.stop();
+    cameraTrack = null;
     peerId = null;
     pendingCandidates = [];
 
@@ -112,6 +119,7 @@ export const useCall = create<CallState>((set, get) => {
         remoteStream: null,
         micEnabled: true,
         camEnabled: true,
+        screenSharing: false,
         error: message,
       });
       setTimeout(() => {
@@ -129,6 +137,7 @@ export const useCall = create<CallState>((set, get) => {
       remoteStream: null,
       micEnabled: true,
       camEnabled: true,
+      screenSharing: false,
       error: null,
     });
   }
@@ -189,6 +198,7 @@ export const useCall = create<CallState>((set, get) => {
     remoteStream: null,
     micEnabled: true,
     camEnabled: true,
+    screenSharing: false,
     error: null,
     initialized: false,
 
@@ -373,6 +383,76 @@ export const useCall = create<CallState>((set, get) => {
           if (get().error === 'Could not access your camera') set({ error: null });
         }, 2500);
       }
+    },
+
+    // Share this screen with the other side. Replaces the outgoing camera video
+    // (or adds a video track on a voice call and renegotiates).
+    shareScreen: async () => {
+      if (!pc || get().status !== 'active' || get().screenSharing) return;
+      let display: MediaStream;
+      try {
+        display = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      } catch {
+        return; // user cancelled the picker
+      }
+      const screenTrack = display.getVideoTracks()[0];
+      if (!screenTrack) return;
+
+      const stream = get().localStream;
+      const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
+      if (sender && stream) {
+        // Park the camera track so it can be restored when sharing stops.
+        cameraTrack = sender.track;
+        await sender.replaceTrack(screenTrack);
+        stream.getVideoTracks().forEach((t) => stream.removeTrack(t));
+        stream.addTrack(screenTrack);
+        set({ localStream: stream, screenSharing: true, callType: 'video', camEnabled: true });
+      } else if (stream) {
+        cameraTrack = null;
+        stream.addTrack(screenTrack);
+        pc.addTrack(screenTrack, stream);
+        set({ localStream: stream, screenSharing: true, callType: 'video', camEnabled: true });
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        signal(pc.localDescription);
+      }
+
+      // The browser's own "Stop sharing" control ends the track.
+      screenTrack.onended = () => {
+        void get().stopScreenShare();
+      };
+    },
+
+    stopScreenShare: async () => {
+      if (!pc || !get().screenSharing) return;
+      const stream = get().localStream;
+      const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
+      const screenTrack = sender?.track ?? null;
+
+      if (cameraTrack && cameraTrack.readyState === 'live' && sender && stream) {
+        // Restore the camera in place — no renegotiation needed.
+        await sender.replaceTrack(cameraTrack);
+        if (screenTrack) stream.removeTrack(screenTrack);
+        stream.addTrack(cameraTrack);
+        screenTrack?.stop();
+        set({ localStream: stream, screenSharing: false, callType: 'video', camEnabled: true });
+      } else if (sender && stream) {
+        // Voice call: drop the shared video track entirely and renegotiate.
+        screenTrack?.stop();
+        if (screenTrack) stream.removeTrack(screenTrack);
+        try {
+          pc.removeTrack(sender);
+        } catch {
+          /* sender already gone */
+        }
+        set({ localStream: stream, screenSharing: false, callType: 'audio', camEnabled: false });
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        signal(pc.localDescription);
+      } else {
+        set({ screenSharing: false });
+      }
+      cameraTrack = null;
     },
 
     // Live-switch the microphone mid-call (and remember the choice).

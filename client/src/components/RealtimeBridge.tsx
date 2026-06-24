@@ -89,7 +89,15 @@ export function RealtimeBridge() {
             const sender = conv?.other;
             showNativeNotification({
               title: sender?.displayName || sender?.username || 'New message',
-              body: messagePreview(p.message.content) || (p.message.imageUrl ? 'Photo' : 'Sent you a message'),
+              body:
+                messagePreview(p.message.content) ||
+                (p.message.audioUrl
+                  ? 'Voice message'
+                  : p.message.videoNoteUrl
+                    ? 'Video message'
+                    : p.message.imageUrl
+                      ? 'Photo'
+                      : 'Sent you a message'),
               icon: sender?.avatarUrl ?? null,
               navigateTo: `/messages/${p.conversationId}`,
               tag: `dm-${p.conversationId}`,

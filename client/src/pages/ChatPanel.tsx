@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Send, ImagePlus, Smile, X, Phone, Video, Search, Gamepad2 } from 'lucide-react';
+import { ArrowLeft, Send, ImagePlus, Smile, X, Phone, Video, Search, Gamepad2, Mic, CircleDot, Trash2 } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { useAuth } from '../store/auth';
@@ -13,8 +13,16 @@ import { EmojiPicker } from '../components/EmojiPicker';
 import { Lightbox } from '../components/Lightbox';
 import { Modal } from '../components/Modal';
 import { GameInviteCard } from '../components/GameInviteCard';
+import { VoiceMessage } from '../components/VoiceMessage';
+import { VideoCircle } from '../components/VideoCircle';
 import { relativeTime } from '../lib/format';
 import { encodeGameInvite, messagePreview, parseGameInvite } from '../lib/gameInvite';
+import {
+  canRecordMedia,
+  extensionForMime,
+  supportedAudioMime,
+  supportedVideoMime,
+} from '../lib/recorder';
 import type { Conversation, Media, Message } from '../types';
 
 export function ChatPanel({ conversation }: { conversation: Conversation }) {
@@ -35,10 +43,20 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [gameInviteOpen, setGameInviteOpen] = useState(false);
   const [gameInvite, setGameInvite] = useState({ game: '', mode: '', startsAt: '', note: '' });
+  const [recording, setRecording] = useState<null | 'audio' | 'video'>(null);
+  const [recElapsed, setRecElapsed] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recChunksRef = useRef<Blob[]>([]);
+  const recStreamRef = useRef<MediaStream | null>(null);
+  const recStartRef = useRef(0);
+  const recKindRef = useRef<'audio' | 'video'>('audio');
+  const recCanceledRef = useRef(false);
+  const recTimerRef = useRef<ReturnType<typeof setInterval>>();
+  const circlePreviewRef = useRef<HTMLVideoElement>(null);
 
   const online = usePresence((s) => s.online[conversation.other.id]);
   const lastSeen = usePresence((s) => s.lastSeen[conversation.other.id]) ?? conversation.other.lastSeenAt;
@@ -58,8 +76,18 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
         ...existing,
         lastMessage: {
           id: message.id,
-          content: messagePreview(message.content) || (message.imageUrl ? 'Image' : ''),
+          content:
+            messagePreview(message.content) ||
+            (message.audioUrl
+              ? '🎤 Voice message'
+              : message.videoNoteUrl
+                ? '⭕ Video message'
+                : message.imageUrl
+                  ? '📷 Photo'
+                  : ''),
           imageUrl: message.imageUrl,
+          audioUrl: message.audioUrl,
+          videoNoteUrl: message.videoNoteUrl,
           senderId: message.senderId,
           createdAt: message.createdAt,
           readAt: message.readAt,
@@ -178,6 +206,114 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
       setIsSending(false);
     }
   }
+
+  async function deliverMedia(kind: 'audio' | 'video', blob: Blob, durationMs: number) {
+    if (isSending) return;
+    setError('');
+    setIsSending(true);
+    try {
+      const type = blob.type || (kind === 'audio' ? 'audio/webm' : 'video/webm');
+      const field = kind === 'audio' ? 'audio' : 'videoNote';
+      const form = new FormData();
+      form.append(field, new File([blob], `${field}.${extensionForMime(type)}`, { type }));
+      form.append('durationMs', String(Math.max(0, Math.round(durationMs))));
+      const { data } = await api.post<{ message: Message }>(
+        `/conversations/${conversation.id}/messages`,
+        form,
+        { headers: { 'Content-Type': 'multipart/form-data' } },
+      );
+      appendMessage(data.message);
+      refreshConversationPreview(data.message);
+      setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 30);
+    } catch (err) {
+      setError(errorMessage(err, 'Could not send message'));
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  function onRecordingStop() {
+    clearInterval(recTimerRef.current);
+    recStreamRef.current?.getTracks().forEach((t) => t.stop());
+    recStreamRef.current = null;
+    const kind = recKindRef.current;
+    const durationMs = Date.now() - recStartRef.current;
+    const chunks = recChunksRef.current;
+    recChunksRef.current = [];
+    recorderRef.current = null;
+    const canceled = recCanceledRef.current;
+    setRecording(null);
+    setRecElapsed(0);
+    if (canceled || chunks.length === 0 || durationMs < 600) return;
+    const type = chunks[0]?.type || (kind === 'audio' ? 'audio/webm' : 'video/webm');
+    void deliverMedia(kind, new Blob(chunks, { type }), durationMs);
+  }
+
+  async function startRecording(kind: 'audio' | 'video') {
+    if (recording || isSending) return;
+    if (!canRecordMedia()) {
+      setError('Recording is not supported on this device');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(
+        kind === 'audio'
+          ? { audio: true }
+          : { audio: true, video: { facingMode: 'user', width: { ideal: 480 }, height: { ideal: 480 } } },
+      );
+      recStreamRef.current = stream;
+      recChunksRef.current = [];
+      recCanceledRef.current = false;
+      recKindRef.current = kind;
+      const mime = kind === 'audio' ? supportedAudioMime() : supportedVideoMime();
+      const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size) recChunksRef.current.push(e.data);
+      };
+      recorder.onstop = onRecordingStop;
+      recorderRef.current = recorder;
+      recorder.start();
+      recStartRef.current = Date.now();
+      setRecording(kind);
+      setRecElapsed(0);
+      recTimerRef.current = setInterval(
+        () => setRecElapsed(Math.floor((Date.now() - recStartRef.current) / 1000)),
+        250,
+      );
+      if (kind === 'video') {
+        setTimeout(() => {
+          if (circlePreviewRef.current) circlePreviewRef.current.srcObject = stream;
+        }, 0);
+      }
+    } catch {
+      setError('Microphone / camera permission denied');
+    }
+  }
+
+  function finishRecording(shouldSend: boolean) {
+    recCanceledRef.current = !shouldSend;
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stop();
+    } else {
+      clearInterval(recTimerRef.current);
+      recStreamRef.current?.getTracks().forEach((t) => t.stop());
+      recStreamRef.current = null;
+      setRecording(null);
+    }
+  }
+
+  // Stop any in-progress recording if the chat unmounts (e.g. switching chats).
+  useEffect(
+    () => () => {
+      clearInterval(recTimerRef.current);
+      recCanceledRef.current = true;
+      const recorder = recorderRef.current;
+      if (recorder && recorder.state !== 'inactive') recorder.stop();
+      recStreamRef.current?.getTracks().forEach((t) => t.stop());
+    },
+    [],
+  );
 
   async function send(e: React.FormEvent) {
     e.preventDefault();
@@ -309,6 +445,20 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
         {visibleMessages.map((m) => {
           const mine = m.senderId === me?.id;
           const invite = parseGameInvite(m.content);
+
+          // Round video "circles" render bare (no chat bubble).
+          if (m.videoNoteUrl) {
+            return (
+              <div key={m.id} className={`mb-3 flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
+                <VideoCircle url={m.videoNoteUrl} />
+                <p className="mt-1 px-2 text-[11px] text-slate-500 dark:text-slate-400">
+                  {relativeTime(m.createdAt)}
+                  {mine && m.readAt ? ' - Read' : ''}
+                </p>
+              </div>
+            );
+          }
+
           return (
             <div key={m.id} className={`mb-2 flex ${mine ? 'justify-end' : 'justify-start'}`}>
               <div
@@ -326,7 +476,9 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
                     alt=""
                   />
                 )}
-                {invite ? (
+                {m.audioUrl ? (
+                  <VoiceMessage url={m.audioUrl} durationMs={m.mediaDurationMs} mine={mine} />
+                ) : invite ? (
                   <GameInviteCard
                     invite={invite}
                     mine={mine}
@@ -364,52 +516,106 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
         </div>
       )}
 
-      <form
-        onSubmit={send}
-        className="glass-strong flex min-w-0 shrink-0 items-end gap-1 border-x-0 border-b-0 px-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2 sm:gap-1.5 sm:px-3 sm:pt-3"
-      >
-        <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => pickImage(e.target.files?.[0])} />
-        <button type="button" onClick={() => fileRef.current?.click()} className="icon-button shrink-0 text-brand" aria-label="Attach image">
-          <ImagePlus size={20} />
-        </button>
-        <button
-          type="button"
-          onClick={() => setGameInviteOpen(true)}
-          className="icon-button shrink-0 text-brand"
-          aria-label="Create game invite"
-          title="Game invite"
-        >
-          <Gamepad2 size={20} />
-        </button>
-        <div className="relative shrink-0">
-          <button type="button" onClick={() => setEmojiOpen((o) => !o)} className="icon-button text-brand" aria-label="Add emoji">
-            <Smile size={20} />
-          </button>
-          {emojiOpen && <EmojiPicker onPick={(emoji) => setText((t) => t + emoji)} onClose={() => setEmojiOpen(false)} />}
+      {/* Live round preview while recording a video circle */}
+      {recording === 'video' && (
+        <div className="flex justify-center pb-2">
+          <div className="relative h-44 w-44 overflow-hidden rounded-full ring-2 ring-rose-400/60 shadow-[0_0_30px_-8px_rgba(244,63,94,0.55)]">
+            <video ref={circlePreviewRef} autoPlay muted playsInline className="h-full w-full -scale-x-100 object-cover" />
+          </div>
         </div>
-        <textarea
-          ref={inputRef}
-          value={text}
-          onChange={onInput}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              send(e);
-            }
-          }}
-          rows={1}
-          placeholder="Start a new message"
-          className="input max-h-32 min-h-11 min-w-0 flex-1 resize-none rounded-2xl px-3 leading-6"
-        />
-        <button
-          type="submit"
-          disabled={(!text.trim() && !image) || isSending}
-          className="btn-primary h-11 w-11 shrink-0 rounded-full p-0"
-          aria-label="Send message"
+      )}
+
+      {recording ? (
+        <div className="glass-strong flex min-w-0 shrink-0 items-center gap-2 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3">
+          <button type="button" onClick={() => finishRecording(false)} className="icon-button shrink-0 text-rose-500" aria-label="Cancel recording" title="Cancel">
+            <Trash2 size={20} />
+          </button>
+          <div className="flex flex-1 items-center gap-2 text-slate-700 dark:text-slate-200">
+            <span className="h-3 w-3 animate-pulse rounded-full bg-rose-500 shadow-[0_0_10px_2px_rgba(244,63,94,0.6)]" />
+            <span className="text-sm font-semibold tabular-nums">
+              {recording === 'video' ? 'Recording circle' : 'Recording voice'} · {Math.floor(recElapsed / 60)}:
+              {String(recElapsed % 60).padStart(2, '0')}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => finishRecording(true)}
+            disabled={isSending}
+            className="btn-primary h-11 w-11 shrink-0 rounded-full p-0"
+            aria-label="Send recording"
+          >
+            <Send size={18} />
+          </button>
+        </div>
+      ) : (
+        <form
+          onSubmit={send}
+          className="glass-strong flex min-w-0 shrink-0 items-end gap-1 border-x-0 border-b-0 px-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2 sm:gap-1.5 sm:px-3 sm:pt-3"
         >
-          <Send size={18} />
-        </button>
-      </form>
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => pickImage(e.target.files?.[0])} />
+          <button type="button" onClick={() => fileRef.current?.click()} className="icon-button shrink-0 text-brand" aria-label="Attach image">
+            <ImagePlus size={20} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setGameInviteOpen(true)}
+            className="icon-button shrink-0 text-brand"
+            aria-label="Create game invite"
+            title="Game invite"
+          >
+            <Gamepad2 size={20} />
+          </button>
+          <div className="relative shrink-0">
+            <button type="button" onClick={() => setEmojiOpen((o) => !o)} className="icon-button text-brand" aria-label="Add emoji">
+              <Smile size={20} />
+            </button>
+            {emojiOpen && <EmojiPicker onPick={(emoji) => setText((t) => t + emoji)} onClose={() => setEmojiOpen(false)} />}
+          </div>
+          <textarea
+            ref={inputRef}
+            value={text}
+            onChange={onInput}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                send(e);
+              }
+            }}
+            rows={1}
+            placeholder="Start a new message"
+            className="input max-h-32 min-h-11 min-w-0 flex-1 resize-none rounded-2xl px-3 leading-6"
+          />
+          <button
+            type="button"
+            onClick={() => startRecording('video')}
+            className="icon-button shrink-0 text-brand"
+            aria-label="Record video circle"
+            title="Video message"
+          >
+            <CircleDot size={20} />
+          </button>
+          {text.trim() || image ? (
+            <button
+              type="submit"
+              disabled={isSending}
+              className="btn-primary h-11 w-11 shrink-0 rounded-full p-0"
+              aria-label="Send message"
+            >
+              <Send size={18} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => startRecording('audio')}
+              className="btn-primary h-11 w-11 shrink-0 rounded-full p-0"
+              aria-label="Record voice message"
+              title="Voice message"
+            >
+              <Mic size={18} />
+            </button>
+          )}
+        </form>
+      )}
 
       {lightboxUrl && (
         <Lightbox

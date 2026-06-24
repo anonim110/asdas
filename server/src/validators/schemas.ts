@@ -77,8 +77,10 @@ export const startConversationSchema = z.object({
 });
 
 export const sendMessageSchema = z.object({
-  // Optional because a message may be an image with no text.
+  // Optional because a message may be an image / voice / video note with no text.
   content: z.string().max(2000).optional(),
+  // Length of a voice message or video note (ms), sent alongside the file.
+  durationMs: z.coerce.number().int().nonnegative().max(86_400_000).optional(),
 });
 
 // ────────────────────── Communities ──────────────────────

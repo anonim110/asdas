@@ -12,7 +12,7 @@
 //
 // You can also override the remote target with the MURMUR_URL env var.
 
-const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, shell, dialog } = require('electron');
+const { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, shell, dialog, desktopCapturer } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const http = require('http');
@@ -189,7 +189,12 @@ function createWindow(url, { devtools = false } = {}) {
   });
 
   // Grant only permissions Murmur uses, and only to the configured app origin.
-  const allowedPermissions = new Set(['media', 'notifications', 'clipboard-sanitized-write']);
+  const allowedPermissions = new Set([
+    'media',
+    'display-capture', // screen sharing
+    'notifications',
+    'clipboard-sanitized-write',
+  ]);
   const isTrustedOrigin = (value) => {
     try {
       return !!appOrigin && new URL(value).origin === appOrigin;
@@ -204,6 +209,17 @@ function createWindow(url, { devtools = false } = {}) {
   mainWindow.webContents.session.setPermissionCheckHandler((_wc, permission, requestingOrigin) => {
     return isTrustedOrigin(requestingOrigin) && allowedPermissions.has(permission);
   });
+
+  // Screen sharing (getDisplayMedia) needs an explicit source in Electron;
+  // auto-grant the primary screen so "Share screen" works without a picker.
+  if (mainWindow.webContents.session.setDisplayMediaRequestHandler) {
+    mainWindow.webContents.session.setDisplayMediaRequestHandler((_request, callback) => {
+      desktopCapturer
+        .getSources({ types: ['screen'] })
+        .then((sources) => callback(sources[0] ? { video: sources[0] } : undefined))
+        .catch(() => callback(undefined));
+    });
+  }
 
   mainWindow.once('ready-to-show', () => mainWindow.show());
 

@@ -17,7 +17,11 @@ router.get('/:id/messages', validate({ query: cursorQuerySchema }), asyncHandler
 router.post(
   '/:id/messages',
   writeLimiter,
-  upload.single('image'),
+  upload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'audio', maxCount: 1 },
+    { name: 'videoNote', maxCount: 1 },
+  ]),
   validate({ body: sendMessageSchema }),
   asyncHandler(message.sendMessage),
 );

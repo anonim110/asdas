@@ -349,10 +349,13 @@ model Message {
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   senderId       String
   sender         User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  content        String? // optional when an image is attached; max length enforced by validation (2000)
-  imageUrl       String?
-  readAt         DateTime?
-  createdAt      DateTime     @default(now())
+  content         String? // optional when an image is attached; max length enforced by validation (2000)
+  imageUrl        String?
+  audioUrl        String? // voice message
+  videoNoteUrl    String? // round "video circle" message
+  mediaDurationMs Int? // length of a voice/video note, for the player
+  readAt          DateTime?
+  createdAt       DateTime     @default(now())
 
   @@index([conversationId, createdAt])
 }

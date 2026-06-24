@@ -20,6 +20,13 @@ const ALLOWED = new Set([
   'video/mp4',
   'video/webm',
   'video/quicktime',
+  // Voice messages & round video notes recorded by the browser.
+  'audio/webm',
+  'audio/ogg',
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/wav',
+  'audio/x-m4a',
 ]);
 
 const diskStorage = multer.diskStorage({
