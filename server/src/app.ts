@@ -21,11 +21,37 @@ export function createApp() {
   // detection work correctly.
   if (env.isProd) app.set('trust proxy', 1);
 
-  // Security headers. Allow media served from this origin to be embedded
-  // cross-origin by the frontend dev server.
+  // Security headers. A strict Content-Security-Policy limits where scripts,
+  // styles and connections may come from (defence-in-depth against XSS and
+  // clickjacking); HSTS forces HTTPS in production. In development the HTML
+  // document is served by Vite (not Express), so this CSP only governs the
+  // API + the production build and won't interfere with HMR.
   app.use(
     helmet({
       crossOriginResourcePolicy: { policy: 'cross-origin' },
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          'default-src': ["'self'"],
+          'script-src': ["'self'"],
+          // React/Tailwind and inline style attributes need 'unsafe-inline'.
+          'style-src': ["'self'", "'unsafe-inline'"],
+          // Avatars/media: same-origin uploads, Cloudinary/Google (https),
+          // generated data URIs and local blob previews.
+          'img-src': ["'self'", 'data:', 'blob:', 'https:'],
+          'font-src': ["'self'", 'data:'],
+          // XHR + Socket.io (which may upgrade to wss / fall back to polling).
+          'connect-src': ["'self'", 'https:', 'wss:', 'ws:'],
+          'media-src': ["'self'", 'blob:', 'https:'],
+          'frame-ancestors': ["'none'"],
+          'object-src': ["'none'"],
+          'base-uri': ["'self'"],
+          'form-action': ["'self'"],
+          // Only force HTTPS upgrades in production (dev runs over http).
+          ...(env.isProd ? {} : { 'upgrade-insecure-requests': null }),
+        },
+      },
+      hsts: env.isProd ? { maxAge: 15552000, includeSubDomains: true } : false,
     }),
   );
 

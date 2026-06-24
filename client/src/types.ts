@@ -132,6 +132,28 @@ export interface Trend {
   count: number;
 }
 
+export interface Session {
+  id: string;
+  userAgent: string | null;
+  ip: string | null;
+  createdAt: string;
+  lastUsedAt: string;
+  current: boolean;
+}
+
+export interface PostAnalytics {
+  postId: string;
+  createdAt: string;
+  views: number;
+  likes: number;
+  reposts: number;
+  replies: number;
+  quotes: number;
+  bookmarks: number;
+  interactions: number;
+  engagementRate: number;
+}
+
 export interface CursorPage<T> {
   items: T[];
   nextCursor: string | null;

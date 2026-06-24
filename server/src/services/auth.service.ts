@@ -8,6 +8,7 @@ import {
   generateRefreshToken,
   hashToken,
 } from '../utils/jwt';
+import { assertLoginAllowed, recordLoginFailure, recordLoginSuccess } from '../utils/loginGuard';
 import { sendPasswordResetCode } from './mail.service';
 
 function refreshExpiry(): Date {
@@ -47,7 +48,10 @@ export interface SessionMeta {
 }
 
 // Issues a short-lived access token plus a persisted, hashed refresh token.
-export async function issueTokens(userId: string, meta: SessionMeta = {}) {
+// A `sessionId` ties together every token rotated from the same login (the
+// "family"); on a fresh login one is generated, on rotation the parent's is
+// reused so the whole chain can be tracked and burned together.
+export async function issueTokens(userId: string, meta: SessionMeta = {}, sessionId?: string) {
   const accessToken = signAccessToken(userId);
   const refreshToken = generateRefreshToken();
   await prisma.refreshToken.create({
@@ -57,6 +61,7 @@ export async function issueTokens(userId: string, meta: SessionMeta = {}) {
       expiresAt: refreshExpiry(),
       userAgent: meta.userAgent?.slice(0, 400) ?? null,
       ip: meta.ip ?? null,
+      ...(sessionId ? { sessionId } : {}),
     },
   });
   return { accessToken, refreshToken };
@@ -91,15 +96,27 @@ export async function register({ email, username, displayName, password }: Regis
 
 export async function login(identifier: string, password: string, meta?: SessionMeta) {
   const value = identifier.trim();
+  const ip = meta?.ip ?? null;
+  // Brute-force guard (per identifier + IP) on top of the IP rate limiter.
+  assertLoginAllowed(value, ip);
+
   const user = await prisma.user.findFirst({
     where: { OR: [{ email: value.toLowerCase() }, { username: value }] },
   });
-  if (!user) throw ApiError.unauthorized('Invalid credentials');
-  if (!user.passwordHash) throw ApiError.unauthorized('Use Google to sign in to this account');
+  if (!user || !user.passwordHash) {
+    recordLoginFailure(value, ip);
+    // Identical message whether the account exists or uses Google, to avoid
+    // leaking which usernames/emails are registered.
+    throw ApiError.unauthorized('Invalid credentials');
+  }
 
   const ok = await verifyPassword(password, user.passwordHash);
-  if (!ok) throw ApiError.unauthorized('Invalid credentials');
+  if (!ok) {
+    recordLoginFailure(value, ip);
+    throw ApiError.unauthorized('Invalid credentials');
+  }
 
+  recordLoginSuccess(value, ip);
   const tokens = await issueTokens(user.id, meta);
   return { user: toAuthUser(user), ...tokens };
 }
@@ -220,64 +237,121 @@ export async function loginWithGoogle(code: string, meta?: SessionMeta) {
   return { user: toAuthUser(user), isNew: true, ...tokens };
 }
 
-// Validates a refresh token, rotates it (delete old, issue new), and returns
-// fresh tokens. Rotation limits the blast radius of a stolen refresh token.
-// Device metadata is carried over so a rotated session keeps its identity.
+// Revokes every still-live token in a session family. Used both for explicit
+// "log out this device" and automatically when token reuse is detected.
+async function revokeFamily(sessionId: string) {
+  await prisma.refreshToken.updateMany({
+    where: { sessionId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+}
+
+// Validates a refresh token and rotates it: the presented token is marked
+// revoked and a fresh token is issued within the same session family.
+//
+// Reuse detection (OWASP): if a token that was ALREADY rotated/revoked is
+// presented again, it means the token leaked and both the attacker and the
+// legitimate client hold copies — so we burn the entire family, forcing a new
+// login. Rotation + reuse detection sharply limits the value of a stolen token.
 export async function rotateRefresh(refreshToken: string, meta?: SessionMeta) {
   if (!refreshToken) throw ApiError.unauthorized('Missing refresh token');
   const tokenHash = hashToken(refreshToken);
   const stored = await prisma.refreshToken.findUnique({ where: { tokenHash } });
-  if (!stored || stored.expiresAt < new Date()) {
-    if (stored) await prisma.refreshToken.delete({ where: { tokenHash } }).catch(() => {});
+
+  if (!stored) throw ApiError.unauthorized('Invalid or expired session');
+
+  // Replay of an already-revoked token → likely theft. Burn the family.
+  if (stored.revokedAt) {
+    await revokeFamily(stored.sessionId);
+    throw ApiError.unauthorized('Session reuse detected — please sign in again');
+  }
+
+  if (stored.expiresAt < new Date()) {
+    await prisma.refreshToken.update({ where: { tokenHash }, data: { revokedAt: new Date() } });
     throw ApiError.unauthorized('Invalid or expired session');
   }
 
-  await prisma.refreshToken.delete({ where: { tokenHash } });
-  const tokens = await issueTokens(stored.userId, {
-    userAgent: meta?.userAgent ?? stored.userAgent,
-    ip: meta?.ip ?? stored.ip,
-  });
-  return tokens;
+  // Rotate: soft-revoke the presented token, issue a new one in the same family.
+  await prisma.refreshToken.update({ where: { tokenHash }, data: { revokedAt: new Date() } });
+  return issueTokens(
+    stored.userId,
+    { userAgent: meta?.userAgent ?? stored.userAgent, ip: meta?.ip ?? stored.ip },
+    stored.sessionId,
+  );
 }
 
 // ─────────────────────── Active sessions ───────────────────────
 
-// Lists the user's live sessions (refresh tokens), flagging the current one.
-export async function listSessions(userId: string, currentRefreshToken?: string) {
-  const currentHash = currentRefreshToken ? hashToken(currentRefreshToken) : null;
-  const rows = await prisma.refreshToken.findMany({
-    where: { userId, expiresAt: { gt: new Date() } },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true, tokenHash: true, userAgent: true, ip: true, createdAt: true, lastUsedAt: true },
+// Resolves the session family id for the refresh token currently in use.
+async function currentSessionId(currentRefreshToken?: string): Promise<string | null> {
+  if (!currentRefreshToken) return null;
+  const row = await prisma.refreshToken.findUnique({
+    where: { tokenHash: hashToken(currentRefreshToken) },
+    select: { sessionId: true },
   });
-  return rows.map((r) => ({
-    id: r.id,
-    userAgent: r.userAgent,
-    ip: r.ip,
-    createdAt: r.createdAt,
-    lastUsedAt: r.lastUsedAt,
-    current: currentHash !== null && r.tokenHash === currentHash,
-  }));
+  return row?.sessionId ?? null;
 }
 
-// Revokes a single session by id (cannot revoke the one in use here — the
-// caller should hit logout for that). Returns false if not found / not owned.
+// Lists the user's active session families (one entry per login), flagging the
+// current device. Revoked/expired tokens are excluded.
+export async function listSessions(userId: string, currentRefreshToken?: string) {
+  const currentSid = await currentSessionId(currentRefreshToken);
+  const rows = await prisma.refreshToken.findMany({
+    where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
+    orderBy: { lastUsedAt: 'desc' },
+    select: { sessionId: true, userAgent: true, ip: true, createdAt: true, lastUsedAt: true },
+  });
+
+  // Collapse a family's rotated tokens into a single session entry.
+  const seen = new Set<string>();
+  const sessions: Array<{
+    id: string;
+    userAgent: string | null;
+    ip: string | null;
+    createdAt: Date;
+    lastUsedAt: Date;
+    current: boolean;
+  }> = [];
+  for (const r of rows) {
+    if (seen.has(r.sessionId)) continue;
+    seen.add(r.sessionId);
+    sessions.push({
+      id: r.sessionId,
+      userAgent: r.userAgent,
+      ip: r.ip,
+      createdAt: r.createdAt,
+      lastUsedAt: r.lastUsedAt,
+      current: currentSid !== null && r.sessionId === currentSid,
+    });
+  }
+  return sessions;
+}
+
+// Revokes an entire session family by its id ("log out this device").
 export async function revokeSession(userId: string, sessionId: string) {
-  const result = await prisma.refreshToken.deleteMany({ where: { id: sessionId, userId } });
+  const result = await prisma.refreshToken.updateMany({
+    where: { sessionId, userId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
   return result.count > 0;
 }
 
-// Revokes every session except the current one ("log out everywhere else").
+// Revokes every session except the current family ("log out everywhere else").
 export async function revokeOtherSessions(userId: string, currentRefreshToken?: string) {
-  const currentHash = currentRefreshToken ? hashToken(currentRefreshToken) : undefined;
-  await prisma.refreshToken.deleteMany({
-    where: { userId, ...(currentHash ? { tokenHash: { not: currentHash } } : {}) },
+  const currentSid = await currentSessionId(currentRefreshToken);
+  await prisma.refreshToken.updateMany({
+    where: { userId, revokedAt: null, ...(currentSid ? { sessionId: { not: currentSid } } : {}) },
+    data: { revokedAt: new Date() },
   });
 }
 
 export async function logout(refreshToken?: string) {
   if (!refreshToken) return;
-  await prisma.refreshToken.deleteMany({ where: { tokenHash: hashToken(refreshToken) } });
+  // Soft-revoke so a later replay of this token still trips reuse detection.
+  await prisma.refreshToken.updateMany({
+    where: { tokenHash: hashToken(refreshToken), revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
 }
 
 export async function getMe(userId: string) {

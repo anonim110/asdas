@@ -87,7 +87,14 @@ model RefreshToken {
   ip        String?
   lastUsedAt DateTime @default(now())
 
+  // Rotation + reuse detection: tokens of one login share a sessionId
+  // ("family"). On rotation the old token is marked revoked rather than
+  // deleted, so replaying a revoked token reveals theft and burns the family.
+  sessionId String   @default(cuid())
+  revokedAt DateTime?
+
   @@index([userId])
+  @@index([sessionId])
 }
 
 model PasswordResetToken {

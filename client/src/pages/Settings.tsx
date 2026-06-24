@@ -1,14 +1,15 @@
 import { useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { Camera } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Camera, Monitor, Smartphone, ShieldCheck, LogOut, Loader2 } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { useAuth } from '../store/auth';
 import { useTheme } from '../store/theme';
 import { soundsMuted, setSoundsMuted } from '../lib/sound';
 import { playMessageSound } from '../lib/sound';
+import { relativeTime } from '../lib/format';
 import { PageHeader } from '../components/PageHeader';
-import type { AuthUser } from '../types';
+import type { AuthUser, Session } from '../types';
 
 export function Settings() {
   const user = useAuth((s) => s.user)!;
@@ -234,6 +235,8 @@ export function Settings() {
 
       <ChangePassword />
 
+      <ActiveSessions />
+
       <section className="p-4">
         <button
           onClick={async () => {
@@ -246,6 +249,139 @@ export function Settings() {
         </button>
       </section>
     </div>
+  );
+}
+
+// Friendly "Chrome on Windows" style label from a raw user-agent string.
+function describeDevice(ua: string | null): string {
+  if (!ua) return 'Unknown device';
+  const browser = /Edg/.test(ua)
+    ? 'Edge'
+    : /OPR|Opera/.test(ua)
+      ? 'Opera'
+      : /Chrome/.test(ua)
+        ? 'Chrome'
+        : /Firefox/.test(ua)
+          ? 'Firefox'
+          : /Safari/.test(ua)
+            ? 'Safari'
+            : 'Browser';
+  const os = /Windows/.test(ua)
+    ? 'Windows'
+    : /Android/.test(ua)
+      ? 'Android'
+      : /iPhone|iPad|iOS/.test(ua)
+        ? 'iOS'
+        : /Mac OS X|Macintosh/.test(ua)
+          ? 'macOS'
+          : /Linux/.test(ua)
+            ? 'Linux'
+            : 'Unknown OS';
+  return `${browser} on ${os}`;
+}
+
+function isMobileUA(ua: string | null): boolean {
+  return !!ua && /Mobile|Android|iPhone|iPad/.test(ua);
+}
+
+// Lists the account's active login sessions and lets the user revoke them —
+// a key account-security control (paired with server-side token rotation).
+function ActiveSessions() {
+  const queryClient = useQueryClient();
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const { data: sessions, isLoading } = useQuery({
+    queryKey: ['sessions'],
+    queryFn: async () => (await api.get<{ sessions: Session[] }>('/auth/sessions')).data.sessions,
+  });
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ['sessions'] });
+
+  async function revoke(id: string) {
+    setBusyId(id);
+    try {
+      await api.delete(`/auth/sessions/${id}`);
+      await refresh();
+    } catch {
+      /* ignore */
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function revokeOthers() {
+    setBusyId('others');
+    try {
+      await api.delete('/auth/sessions/others');
+      await refresh();
+    } catch {
+      /* ignore */
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const others = (sessions ?? []).filter((s) => !s.current).length;
+
+  return (
+    <section className="card p-4">
+      <h2 className="mb-1 text-lg font-bold">Active sessions</h2>
+      <p className="mb-3 text-sm text-gray-500">
+        Devices currently signed in to your account. Revoke any you don&apos;t recognise.
+      </p>
+
+      {isLoading && (
+        <div className="flex items-center gap-2 py-4 text-sm text-gray-500">
+          <Loader2 size={16} className="animate-spin" /> Loading sessions…
+        </div>
+      )}
+
+      <ul className="space-y-2">
+        {(sessions ?? []).map((s) => (
+          <li
+            key={s.id}
+            className="flex items-center gap-3 rounded-2xl border border-slate-200/80 p-3 dark:border-white/10"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 dark:bg-white/[0.06] dark:text-slate-300">
+              {isMobileUA(s.userAgent) ? <Smartphone size={18} /> : <Monitor size={18} />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-2 truncate font-semibold">
+                {describeDevice(s.userAgent)}
+                {s.current && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700 dark:bg-green-500/15 dark:text-green-300">
+                    <ShieldCheck size={12} /> This device
+                  </span>
+                )}
+              </p>
+              <p className="truncate text-xs text-gray-500">
+                {s.ip ? `${s.ip} · ` : ''}active {relativeTime(s.lastUsedAt)}
+              </p>
+            </div>
+            {!s.current && (
+              <button
+                onClick={() => revoke(s.id)}
+                disabled={busyId === s.id}
+                className="btn-outline shrink-0 px-3 py-1.5 text-sm"
+              >
+                {busyId === s.id ? '…' : 'Revoke'}
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      {others > 0 && (
+        <button
+          onClick={revokeOthers}
+          disabled={busyId === 'others'}
+          className="btn-outline mt-3 flex items-center gap-2 border-red-300 text-red-500 dark:border-red-900"
+        >
+          <LogOut size={16} />
+          {busyId === 'others' ? 'Signing out…' : 'Log out of all other devices'}
+        </button>
+      )}
+    </section>
   );
 }
 
