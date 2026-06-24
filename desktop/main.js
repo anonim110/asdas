@@ -44,6 +44,57 @@ function showMainWindow() {
   mainWindow.focus();
 }
 
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Branded splash / offline screen shown while connecting to the live site.
+function showSplash(offline) {
+  if (!mainWindow) return;
+  mainWindow.loadFile(path.join(__dirname, 'loading.html'), offline ? { query: { offline: '1' } } : {});
+}
+
+// Quick reachability check against the live API (handles Render cold starts).
+function probeRemote(timeoutMs) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (v) => {
+      if (!settled) {
+        settled = true;
+        resolve(v);
+      }
+    };
+    try {
+      const lib = REMOTE_URL.startsWith('https') ? require('https') : require('http');
+      const req = lib.get(`${REMOTE_URL}/api/health`, (res) => {
+        res.resume();
+        done(res.statusCode === 200);
+      });
+      req.on('error', () => done(false));
+      req.setTimeout(timeoutMs, () => {
+        req.destroy();
+        done(false);
+      });
+    } catch {
+      done(false);
+    }
+  });
+}
+
+// Show the splash, wait for the server to be reachable, then load the site.
+// On a free Render instance the first request can cold-start for ~30–60s.
+async function connectRemote() {
+  if (!mainWindow) return;
+  showSplash(false);
+  for (let i = 0; i < 30; i++) {
+    if (!mainWindow || quitting) return;
+    if (await probeRemote(5000)) {
+      mainWindow.loadURL(REMOTE_URL);
+      return;
+    }
+    await delay(2000);
+  }
+  if (mainWindow) showSplash(true);
+}
+
 // System-tray icon so the app keeps running (and receiving notifications) after
 // the window is closed — like Telegram. Closing the window hides it here.
 function createTray() {
@@ -159,7 +210,7 @@ function waitForServer(timeoutMs = 30000) {
 }
 
 // ──────────────────────────────── Window ────────────────────────────────────
-function createWindow(url, { devtools = false } = {}) {
+function createWindow(url, { devtools = false, defer = false } = {}) {
   const appOrigin = (() => {
     try {
       return new URL(url).origin;
@@ -248,6 +299,7 @@ function createWindow(url, { devtools = false } = {}) {
   mainWindow.webContents.on('will-navigate', (event, target) => {
     try {
       const parsed = new URL(target);
+      if (parsed.protocol === 'file:') return; // local splash screen
       if (appOrigin && parsed.origin !== appOrigin && ['http:', 'https:'].includes(parsed.protocol)) {
         event.preventDefault();
         shell.openExternal(target);
@@ -257,7 +309,16 @@ function createWindow(url, { devtools = false } = {}) {
     }
   });
 
-  mainWindow.loadURL(url);
+  // If the live site can't load (offline / server asleep), fall back to the
+  // offline splash with a Retry button instead of a broken error page.
+  if (mode === 'remote') {
+    mainWindow.webContents.on('did-fail-load', (_e, errorCode, _desc, validatedURL, isMainFrame) => {
+      if (!isMainFrame || errorCode === -3) return; // -3 = aborted (normal nav)
+      if (appOrigin && validatedURL.startsWith(appOrigin)) showSplash(true);
+    });
+  }
+
+  if (!defer) mainWindow.loadURL(url);
   if (devtools) mainWindow.webContents.openDevTools({ mode: 'detach' });
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -285,8 +346,10 @@ async function boot() {
     return;
   }
 
-  // Default: wrap the live site.
-  createWindow(REMOTE_URL);
+  // Default: wrap the live site, syncing with the same account/data. Show a
+  // splash while we wait for the server, then load it.
+  createWindow(REMOTE_URL, { defer: true });
+  connectRemote();
 }
 
 // ─────────────────────────────── Lifecycle ──────────────────────────────────
@@ -297,6 +360,11 @@ if (!app.requestSingleInstanceLock()) {
 
   // A clicked OS notification asks the shell to bring the window back.
   ipcMain.on('murmur:focus', showMainWindow);
+
+  // The offline splash's "Try again" button re-attempts the connection.
+  ipcMain.on('murmur:retry', () => {
+    if (mode === 'remote') connectRemote();
+  });
 
   app.whenReady().then(boot);
 

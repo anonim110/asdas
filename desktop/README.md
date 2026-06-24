@@ -1,10 +1,16 @@
 # Murmur — Desktop app (Electron)
 
-A native desktop wrapper for the Murmur social network. By default it opens the
-already-deployed production site (`https://murmur-social.onrender.com`) in its
-own window — no browser, no tabs. Because the production server serves the React
-client and the API from the same origin, login, realtime, and uploads all work
-exactly like the website.
+A real, installable desktop application for the Murmur social network. It signs
+in to the **same account and the same backend** as the website
+(`https://murmur-social.onrender.com`), so all data — posts, chats, calls,
+notifications — stays fully in sync between the website and the desktop app.
+There is no separate desktop database in the default mode; the app is the live
+service in its own window (no browser, no tabs), with a system-tray presence and
+native OS notifications.
+
+On launch it shows a branded connecting screen, waits for the server (handling
+free-tier cold starts), and falls back to an offline screen with a **Try again**
+button if there's no connection.
 
 ## Run from source
 

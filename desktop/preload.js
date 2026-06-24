@@ -8,4 +8,5 @@ contextBridge.exposeInMainWorld('murmurDesktop', {
   isDesktop: true,
   platform: process.platform,
   focus: () => ipcRenderer.send('murmur:focus'),
+  retry: () => ipcRenderer.send('murmur:retry'),
 });
