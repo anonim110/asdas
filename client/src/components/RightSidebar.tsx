@@ -32,7 +32,7 @@ export function RightSidebar() {
           e.preventDefault();
           if (q.trim()) navigate(`/search?q=${encodeURIComponent(q.trim())}`);
         }}
-        className="sticky top-0 z-10 bg-rose-50/40 pb-2 dark:bg-[#07080f]"
+        className="sticky top-0 z-10 pb-2"
       >
         <div className="search-field">
           <Search size={18} className="text-slate-500" />

@@ -38,6 +38,39 @@ function injectHeadTags() {
     meta.content = 'yes';
     return meta;
   });
+  ensure('meta[name="mobile-web-app-capable"]', () => {
+    const meta = document.createElement('meta');
+    meta.name = 'mobile-web-app-capable';
+    meta.content = 'yes';
+    return meta;
+  });
+  ensure('meta[name="apple-mobile-web-app-title"]', () => {
+    const meta = document.createElement('meta');
+    meta.name = 'apple-mobile-web-app-title';
+    meta.content = 'Murmur';
+    return meta;
+  });
+  ensure('meta[name="apple-mobile-web-app-status-bar-style"]', () => {
+    const meta = document.createElement('meta');
+    meta.name = 'apple-mobile-web-app-status-bar-style';
+    meta.content = 'default';
+    return meta;
+  });
+}
+
+// Flag installed-PWA / desktop launches so the CSS can intensify the glass
+// look (see `.standalone` in index.css).
+function applyStandaloneClass() {
+  const mql = window.matchMedia?.('(display-mode: standalone)');
+  const update = () => {
+    const standalone =
+      !!mql?.matches ||
+      (navigator as unknown as { standalone?: boolean }).standalone === true ||
+      !!(window as unknown as { murmurDesktop?: { isDesktop?: boolean } }).murmurDesktop?.isDesktop;
+    document.documentElement.classList.toggle('standalone', standalone);
+  };
+  update();
+  mql?.addEventListener?.('change', update);
 }
 
 function registerServiceWorker() {
@@ -283,6 +316,7 @@ function installOfflineBanner() {
 // ─────────────────────────── Bootstrap ───────────────────────────
 
 injectHeadTags();
+applyStandaloneClass();
 registerServiceWorker();
 installShortcuts();
 installOfflineBanner();

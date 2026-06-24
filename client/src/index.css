@@ -7,6 +7,44 @@
   --surface: 255 255 255;
   --surface-muted: 255 241 242;
   --ink: 15 23 42;
+
+  /* ── Liquid-glass design tokens (light) ── */
+  --glass-blur: 16px;
+  --glass-saturate: 165%;
+  --glass-bg: rgba(255, 255, 255, 0.62);
+  --glass-bg-strong: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --glass-hairline: rgba(15, 23, 42, 0.07);
+  --glass-sheen: rgba(255, 255, 255, 0.7);
+  --glass-shadow: 0 16px 40px -24px rgba(15, 23, 42, 0.4);
+  --radius-glass: 1.25rem;
+}
+
+.dark {
+  /* ── Liquid-glass design tokens (dark) ── */
+  --glass-blur: 18px;
+  --glass-saturate: 150%;
+  --glass-bg: rgba(22, 24, 38, 0.55);
+  --glass-bg-strong: rgba(22, 24, 38, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-hairline: rgba(255, 255, 255, 0.08);
+  --glass-sheen: rgba(255, 255, 255, 0.14);
+  --glass-shadow: 0 22px 55px -30px rgba(0, 0, 0, 0.8);
+}
+
+/* Installed PWA (iPhone "Add to Home Screen" / desktop app): turn the glass
+   up — more blur, more vibrancy, thinner surfaces — for the iOS-style look. */
+.standalone {
+  --glass-blur: 28px;
+  --glass-saturate: 190%;
+  --glass-bg: rgba(255, 255, 255, 0.5);
+  --glass-bg-strong: rgba(255, 255, 255, 0.64);
+}
+.standalone.dark {
+  --glass-blur: 30px;
+  --glass-saturate: 175%;
+  --glass-bg: rgba(22, 24, 38, 0.42);
+  --glass-bg-strong: rgba(22, 24, 38, 0.6);
 }
 
 html,
@@ -16,10 +54,31 @@ body,
 }
 
 body {
-  @apply bg-slate-50 text-slate-950 dark:bg-[#07080f] dark:text-slate-100;
+  @apply bg-slate-100 text-slate-950 dark:bg-[#05060c] dark:text-slate-100;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Ambient, softly-coloured backdrop so the frosted surfaces have light to
+   refract — this is what sells the "liquid glass" depth. Fixed + non-blocking. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: -10%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(42% 38% at 12% -5%, rgba(251, 113, 133, 0.28), transparent 60%),
+    radial-gradient(38% 34% at 100% 8%, rgba(37, 99, 235, 0.2), transparent 60%),
+    radial-gradient(46% 40% at 50% 112%, rgba(225, 29, 72, 0.16), transparent 62%);
+  filter: saturate(115%);
+}
+.dark body::before {
+  background:
+    radial-gradient(44% 40% at 10% -6%, rgba(244, 63, 94, 0.22), transparent 60%),
+    radial-gradient(40% 36% at 102% 6%, rgba(56, 89, 220, 0.22), transparent 60%),
+    radial-gradient(48% 42% at 52% 114%, rgba(124, 58, 237, 0.18), transparent 62%);
 }
 
 ::selection {
@@ -65,32 +124,93 @@ button {
 }
 
 @layer components {
+  /* Reusable frosted surfaces. `.glass` for chrome, `.glass-strong` where text
+     density needs a more opaque backing. Includes a top sheen for the
+     light-catching "liquid glass" edge, with an opaque fallback. */
+  .glass {
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-sheen);
+  }
+  .glass-strong {
+    background: var(--glass-bg-strong);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-sheen);
+  }
+  /* Sticky top/bottom bars: translucent blur with a single hairline edge. */
+  .glass-bar {
+    background: var(--glass-bg-strong);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border-bottom: 1px solid var(--glass-hairline);
+  }
+
   .btn-primary {
-    @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full bg-brand px-5 py-2.5 font-bold text-white shadow-lift transition-all duration-200 hover:bg-brand-hover hover:shadow-lg hover:shadow-brand/20 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:active:scale-100;
+    @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full bg-brand px-5 py-2.5 font-bold text-white shadow-lift transition-all duration-200 hover:bg-brand-hover hover:shadow-lg hover:shadow-brand/30 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:active:scale-100;
+    background-image: linear-gradient(135deg, #f43f5e 0%, #e11d48 55%, #be123c 100%);
   }
   .btn-outline {
-    @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-2.5 font-bold text-slate-800 shadow-sm transition-all duration-200 hover:border-brand/30 hover:bg-rose-50 active:scale-[0.97] dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-100 dark:hover:bg-white/[0.08];
+    @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full px-5 py-2.5 font-bold text-slate-800 transition-all duration-200 hover:border-brand/30 hover:text-brand active:scale-[0.97] dark:text-slate-100;
+    background: var(--glass-bg-strong);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 1px solid var(--glass-border);
   }
   .input {
-    @apply min-h-11 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 outline-none transition duration-200 placeholder:text-slate-400 focus:border-brand/50 focus:ring-4 focus:ring-brand/10 dark:border-white/10 dark:bg-white/[0.04] dark:placeholder:text-slate-500 dark:focus:bg-white/[0.07];
+    @apply min-h-11 w-full rounded-xl border border-slate-300/70 bg-white/70 px-4 py-2.5 outline-none transition duration-200 placeholder:text-slate-400 focus:border-brand/50 focus:bg-white focus:ring-4 focus:ring-brand/10 dark:border-white/10 dark:bg-white/[0.05] dark:placeholder:text-slate-500 dark:focus:bg-white/[0.08];
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
   }
   .card {
-    @apply border-b border-slate-200/80 bg-white dark:border-white/10 dark:bg-white/[0.025];
+    @apply border-b border-slate-200/70 bg-transparent dark:border-white/[0.08];
   }
   .panel {
-    @apply rounded-lg border border-slate-200/80 bg-white/95 shadow-soft backdrop-blur dark:border-white/10 dark:bg-[#0d0f18]/95;
+    border-radius: var(--radius-glass);
+    background: var(--glass-bg-strong);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-sheen);
   }
   .icon-button {
-    @apply inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-full text-slate-500 transition duration-200 hover:bg-rose-50 hover:text-brand active:scale-90 dark:text-slate-400 dark:hover:bg-white/[0.07] dark:hover:text-rose-300;
+    @apply inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-full text-slate-500 transition duration-200 hover:bg-white/70 hover:text-brand hover:shadow-sm active:scale-90 dark:text-slate-400 dark:hover:bg-white/[0.1] dark:hover:text-rose-300;
   }
   .search-field {
-    @apply flex min-h-12 items-center gap-2 rounded-xl border border-slate-200/80 bg-white px-4 py-2.5 shadow-sm transition duration-200 focus-within:border-brand/40 focus-within:ring-4 focus-within:ring-brand/10 dark:border-white/10 dark:bg-white/[0.05];
+    @apply flex min-h-12 items-center gap-2 rounded-2xl px-4 py-2.5 transition duration-200 focus-within:border-brand/40 focus-within:ring-4 focus-within:ring-brand/10;
+    background: var(--glass-bg);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    border: 1px solid var(--glass-border);
   }
   .post-card {
-    @apply relative transition duration-200 hover:z-[1] hover:bg-rose-50/45 hover:shadow-[0_12px_30px_-28px_rgba(15,23,42,0.9)] active:bg-rose-50/70 dark:hover:bg-white/[0.045] dark:active:bg-white/[0.065];
+    @apply relative transition duration-200 hover:z-[1] hover:bg-white/55 hover:shadow-[0_14px_34px_-28px_rgba(15,23,42,0.9)] active:bg-white/70 dark:hover:bg-white/[0.05] dark:active:bg-white/[0.07];
   }
   .mobile-safe-pad {
     padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
+  }
+}
+
+/* Opaque fallback when backdrop-filter isn't supported, so text stays legible. */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .glass,
+  .glass-strong,
+  .glass-bar,
+  .panel,
+  .btn-outline,
+  .search-field {
+    background: rgba(255, 255, 255, 0.96);
+  }
+  .dark .glass,
+  .dark .glass-strong,
+  .dark .glass-bar,
+  .dark .panel,
+  .dark .btn-outline,
+  .dark .search-field {
+    background: rgba(17, 19, 30, 0.96);
   }
 }
 

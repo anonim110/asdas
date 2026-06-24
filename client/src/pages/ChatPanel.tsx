@@ -188,7 +188,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
 
   return (
     <div className="flex h-[100dvh] flex-col">
-      <div className="sticky top-0 z-10 flex min-h-16 items-center gap-3 border-b border-slate-200/80 bg-white/90 px-3 py-3 backdrop-blur-xl dark:border-white/10 dark:bg-[#07080f]/90 sm:px-4">
+      <div className="glass-bar sticky top-0 z-10 flex min-h-16 items-center gap-3 px-3 py-3 sm:px-4">
         <Link to="/messages" className="-ml-1 icon-button md:hidden" aria-label="Back to conversations">
           <ArrowLeft size={20} />
         </Link>

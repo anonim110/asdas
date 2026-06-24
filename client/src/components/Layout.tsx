@@ -182,7 +182,7 @@ export function Layout() {
 
       {/* Main content — keyed by route for a subtle fade on navigation */}
       <main
-        className={`min-h-screen w-full border-x border-slate-200/80 bg-white/70 shadow-soft backdrop-blur dark:border-white/10 dark:bg-black/35 ${
+        className={`glass min-h-screen w-full sm:rounded-none ${
           isMessagesRoute ? 'max-w-[920px]' : 'max-w-[600px]'
         }`}
       >
@@ -195,7 +195,7 @@ export function Layout() {
 
       {/* Mobile bottom navigation */}
       {!isChatRoute && (
-        <nav className="mobile-safe-pad fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 border-t border-slate-200/80 bg-white/95 px-1 pt-1 shadow-[0_-16px_40px_-30px_rgba(15,23,42,0.45)] backdrop-blur-xl sm:hidden dark:border-white/10 dark:bg-[#07080f]/95">
+        <nav className="glass-strong mobile-safe-pad fixed bottom-0 left-0 right-0 z-40 grid grid-cols-5 px-1 pt-1 sm:hidden">
           {items.slice(0, 4).map((item) => (
             <NavLink
               key={item.to}
