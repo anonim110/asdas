@@ -27,6 +27,7 @@ const meSelect = {
   bio: true,
   link: true,
   location: true,
+  gameStatus: true,
   avatarUrl: true,
   bannerUrl: true,
   createdAt: true,

@@ -28,6 +28,7 @@ export function Settings() {
     bio: user.bio ?? '',
     link: user.link ?? '',
     location: user.location ?? '',
+    gameStatus: user.gameStatus ?? '',
   });
   const [avatar, setAvatar] = useState<File | null>(null);
   const [banner, setBanner] = useState<File | null>(null);
@@ -53,6 +54,7 @@ export function Settings() {
       data.append('bio', form.bio);
       data.append('link', form.link);
       data.append('location', form.location);
+      data.append('gameStatus', form.gameStatus);
       if (avatar) data.append('avatar', avatar);
       if (banner) data.append('banner', banner);
 
@@ -160,6 +162,15 @@ export function Settings() {
                 value={form.location}
                 onChange={(e) => setForm({ ...form, location: e.target.value })}
                 maxLength={50}
+              />
+            </Field>
+            <Field label="Playing now">
+              <input
+                className="input"
+                placeholder="e.g. Valorant — Ranked"
+                value={form.gameStatus}
+                onChange={(e) => setForm({ ...form, gameStatus: e.target.value })}
+                maxLength={60}
               />
             </Field>
             <Field label="Website">

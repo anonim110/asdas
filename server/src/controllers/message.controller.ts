@@ -49,3 +49,18 @@ export async function markRead(req: Request, res: Response) {
   await messageService.markConversationRead(req.params.id, req.userId!);
   res.status(204).end();
 }
+
+export async function reactMessage(req: Request, res: Response) {
+  const message = await messageService.reactToMessage(
+    req.params.id,
+    req.params.mid,
+    req.userId!,
+    req.body.emoji,
+  );
+  res.json({ message });
+}
+
+export async function deleteMessage(req: Request, res: Response) {
+  await messageService.deleteMessage(req.params.id, req.params.mid, req.userId!);
+  res.status(204).end();
+}

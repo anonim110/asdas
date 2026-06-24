@@ -13,6 +13,7 @@ import { FollowButton } from '../components/FollowButton';
 import { Feed } from '../components/Feed';
 import { Spinner } from '../components/Spinner';
 import { UserName } from '../components/UserName';
+import { GameStatus } from '../components/GameStatus';
 import { getAvatarTheme } from '../lib/avatar';
 import type { Conversation, Post, Profile as ProfileType } from '../types';
 
@@ -153,6 +154,12 @@ export function Profile() {
             </span>
           )}
         </div>
+
+        {profile.gameStatus && (
+          <div className="mt-3">
+            <GameStatus status={profile.gameStatus} className="text-sm" />
+          </div>
+        )}
 
         {profile.bio && <p className="mt-3 whitespace-pre-wrap leading-6 text-slate-800 dark:text-slate-200">{profile.bio}</p>}
 

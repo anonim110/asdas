@@ -12,6 +12,7 @@ export interface AuthUser {
   hasPassword: boolean;
   googleLinked: boolean;
   verified?: boolean;
+  gameStatus?: string | null;
 }
 
 export interface UserSummary {
@@ -23,6 +24,7 @@ export interface UserSummary {
   bio?: string | null;
   lastSeenAt?: string;
   isFollowing?: boolean;
+  gameStatus?: string | null;
 }
 
 export type MediaType = 'IMAGE' | 'VIDEO' | 'GIF';
@@ -81,6 +83,7 @@ export interface Profile {
   bio: string | null;
   link: string | null;
   location: string | null;
+  gameStatus?: string | null;
   avatarUrl: string | null;
   bannerUrl: string | null;
   verified?: boolean;
@@ -128,8 +131,15 @@ export interface Message {
   audioUrl?: string | null;
   videoNoteUrl?: string | null;
   mediaDurationMs?: number | null;
+  deletedAt?: string | null;
+  reactions?: MessageReaction[];
   readAt: string | null;
   createdAt: string;
+}
+
+export interface MessageReaction {
+  emoji: string;
+  userIds: string[];
 }
 
 export interface Community {

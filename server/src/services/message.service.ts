@@ -20,6 +20,52 @@ async function ensureNotBlocked(a: string, b: string) {
   if (blocked) throw ApiError.forbidden('Messaging is unavailable with this user');
 }
 
+// Collapse raw reaction rows into [{ emoji, userIds }] for the client (which
+// derives count and "mine" from userIds — both DM participants are known).
+function groupReactions(reactions: Array<{ userId: string; emoji: string }>) {
+  const map = new Map<string, string[]>();
+  for (const r of reactions) {
+    const ids = map.get(r.emoji) ?? [];
+    ids.push(r.userId);
+    map.set(r.emoji, ids);
+  }
+  return [...map.entries()].map(([emoji, userIds]) => ({ emoji, userIds }));
+}
+
+const reactionInclude = { reactions: { select: { userId: true, emoji: true } } } as const;
+
+// Public message shape. Soft-deleted messages drop their content/media.
+function serializeMessage(m: any) {
+  const deleted = Boolean(m.deletedAt);
+  return {
+    id: m.id,
+    conversationId: m.conversationId,
+    senderId: m.senderId,
+    content: deleted ? null : m.content ?? null,
+    imageUrl: deleted ? null : m.imageUrl ?? null,
+    audioUrl: deleted ? null : m.audioUrl ?? null,
+    videoNoteUrl: deleted ? null : m.videoNoteUrl ?? null,
+    mediaDurationMs: m.mediaDurationMs ?? null,
+    deletedAt: m.deletedAt ?? null,
+    reactions: groupReactions(m.reactions ?? []),
+    readAt: m.readAt ?? null,
+    createdAt: m.createdAt,
+  };
+}
+
+// Re-fetch a message with reactions and push it to both participants.
+async function emitMessageUpdate(conversationId: string, messageId: string) {
+  const [fresh, conv] = await Promise.all([
+    prisma.message.findUnique({ where: { id: messageId }, include: reactionInclude }),
+    prisma.conversation.findUnique({ where: { id: conversationId } }),
+  ]);
+  if (!fresh || !conv) return null;
+  const message = serializeMessage(fresh);
+  emitToUser(conv.userAId, 'dm:update', { conversationId, message });
+  emitToUser(conv.userBId, 'dm:update', { conversationId, message });
+  return message;
+}
+
 export async function getOrCreateConversation(userId: string, otherUsername: string) {
   const other = await prisma.user.findUnique({ where: { username: otherUsername }, select: { id: true } });
   if (!other) throw ApiError.notFound('User not found');
@@ -117,12 +163,13 @@ export async function getMessages(conversationId: string, userId: string, cursor
     where: { conversationId },
     orderBy: { createdAt: 'desc' },
     take: limit + 1,
+    include: reactionInclude,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
   const hasMore = items.length > limit;
   const page = hasMore ? items.slice(0, limit) : items;
   // Returned newest-first; the client reverses for display.
-  return { items: page, nextCursor: hasMore ? page[page.length - 1].id : null };
+  return { items: page.map(serializeMessage), nextCursor: hasMore ? page[page.length - 1].id : null };
 }
 
 interface MessageAttachments {
@@ -161,10 +208,57 @@ export async function sendMessage(
     prisma.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } }),
   ]);
 
+  const serialized = serializeMessage(message);
   // Realtime delivery to both participants.
-  emitToUser(otherId, 'dm:new', { conversationId, message });
-  emitToUser(senderId, 'dm:new', { conversationId, message });
-  return message;
+  emitToUser(otherId, 'dm:new', { conversationId, message: serialized });
+  emitToUser(senderId, 'dm:new', { conversationId, message: serialized });
+  return serialized;
+}
+
+// Toggle an emoji reaction on a message; notifies both participants.
+export async function reactToMessage(
+  conversationId: string,
+  messageId: string,
+  userId: string,
+  emoji: string,
+) {
+  await assertParticipant(conversationId, userId);
+  const message = await prisma.message.findFirst({
+    where: { id: messageId, conversationId },
+    select: { id: true, deletedAt: true },
+  });
+  if (!message) throw ApiError.notFound('Message not found');
+  if (message.deletedAt) throw ApiError.badRequest('Cannot react to a deleted message');
+
+  const existing = await prisma.messageReaction.findUnique({
+    where: { messageId_userId_emoji: { messageId, userId, emoji } },
+  });
+  if (existing) {
+    await prisma.messageReaction.delete({ where: { id: existing.id } });
+  } else {
+    await prisma.messageReaction.create({ data: { messageId, userId, emoji } });
+  }
+  return emitMessageUpdate(conversationId, messageId);
+}
+
+// Soft-delete your own message ("message deleted"); notifies both participants.
+export async function deleteMessage(conversationId: string, messageId: string, userId: string) {
+  await assertParticipant(conversationId, userId);
+  const message = await prisma.message.findFirst({
+    where: { id: messageId, conversationId },
+    select: { id: true, senderId: true },
+  });
+  if (!message) throw ApiError.notFound('Message not found');
+  if (message.senderId !== userId) throw ApiError.forbidden('You can only delete your own messages');
+
+  await prisma.$transaction([
+    prisma.message.update({
+      where: { id: messageId },
+      data: { deletedAt: new Date(), content: null, imageUrl: null, audioUrl: null, videoNoteUrl: null },
+    }),
+    prisma.messageReaction.deleteMany({ where: { messageId } }),
+  ]);
+  return emitMessageUpdate(conversationId, messageId);
 }
 
 // Marks all messages from the *other* participant as read. Returns the other

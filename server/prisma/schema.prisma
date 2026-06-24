@@ -28,6 +28,7 @@ model User {
   bio           String? // max length enforced by validation (160)
   link          String?
   location      String?
+  gameStatus    String? // "Playing now" rich-presence status, e.g. "Valorant"
   avatarUrl     String?
   bannerUrl     String?
   lastSeenAt    DateTime @default(now())
@@ -66,6 +67,7 @@ model User {
   conversationsA Conversation[] @relation("ConversationUserA")
   conversationsB Conversation[] @relation("ConversationUserB")
   messagesSent   Message[]      @relation("MessageSender")
+  messageReactions MessageReaction[] @relation("MessageReactionUser")
 
   // Communities (groups)
   communitiesOwned     Community[]        @relation("CommunityOwner")
@@ -354,10 +356,27 @@ model Message {
   audioUrl        String? // voice message
   videoNoteUrl    String? // round "video circle" message
   mediaDurationMs Int? // length of a voice/video note, for the player
+  deletedAt       DateTime? // soft-deleted ("message deleted") so threads stay intact
   readAt          DateTime?
   createdAt       DateTime     @default(now())
 
+  reactions       MessageReaction[]
+
   @@index([conversationId, createdAt])
+}
+
+// Emoji reactions on a direct message (one row per user+emoji).
+model MessageReaction {
+  id        String   @id @default(cuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation("MessageReactionUser", fields: [userId], references: [id], onDelete: Cascade)
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
 }
 
 // ──────────────────── Communities (groups) ────────────────────

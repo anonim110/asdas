@@ -5,7 +5,12 @@ import { requireAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { upload } from '../middleware/upload';
 import { writeLimiter } from '../middleware/rateLimit';
-import { startConversationSchema, sendMessageSchema, cursorQuerySchema } from '../validators/schemas';
+import {
+  startConversationSchema,
+  sendMessageSchema,
+  cursorQuerySchema,
+  reactMessageSchema,
+} from '../validators/schemas';
 
 const router = Router();
 
@@ -26,5 +31,12 @@ router.post(
   asyncHandler(message.sendMessage),
 );
 router.post('/:id/read', asyncHandler(message.markRead));
+router.post(
+  '/:id/messages/:mid/react',
+  writeLimiter,
+  validate({ body: reactMessageSchema }),
+  asyncHandler(message.reactMessage),
+);
+router.delete('/:id/messages/:mid', asyncHandler(message.deleteMessage));
 
 export default router;

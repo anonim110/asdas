@@ -9,6 +9,7 @@ export const authorSelect = {
   bio: true,
   verified: true,
   lastSeenAt: true,
+  gameStatus: true,
 } satisfies Prisma.UserSelect;
 
 // Builds the Prisma `include` used when fetching posts. When a viewer id is

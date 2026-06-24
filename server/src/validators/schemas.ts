@@ -49,6 +49,7 @@ export const updateProfileSchema = z.object({
   bio: z.preprocess(emptyToNull, z.string().max(160).nullable().optional()),
   link: z.preprocess(emptyToNull, z.string().url('Must be a valid URL').max(200).nullable().optional()),
   location: z.preprocess(emptyToNull, z.string().max(50).nullable().optional()),
+  gameStatus: z.preprocess(emptyToNull, z.string().max(60).nullable().optional()),
 });
 
 // ───────────────────────── Posts ─────────────────────────
@@ -81,6 +82,10 @@ export const sendMessageSchema = z.object({
   content: z.string().max(2000).optional(),
   // Length of a voice message or video note (ms), sent alongside the file.
   durationMs: z.coerce.number().int().nonnegative().max(86_400_000).optional(),
+});
+
+export const reactMessageSchema = z.object({
+  emoji: z.string().min(1).max(16),
 });
 
 // ────────────────────── Communities ──────────────────────

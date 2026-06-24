@@ -12,9 +12,11 @@ import { Avatar } from '../components/Avatar';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { Lightbox } from '../components/Lightbox';
 import { Modal } from '../components/Modal';
+import { Dismiss } from '../components/Dismiss';
 import { GameInviteCard } from '../components/GameInviteCard';
 import { VoiceMessage } from '../components/VoiceMessage';
 import { VideoCircle } from '../components/VideoCircle';
+import { GameStatus } from '../components/GameStatus';
 import { relativeTime } from '../lib/format';
 import { encodeGameInvite, messagePreview, parseGameInvite } from '../lib/gameInvite';
 import {
@@ -24,6 +26,8 @@ import {
   supportedVideoMime,
 } from '../lib/recorder';
 import type { Conversation, Media, Message } from '../types';
+
+const QUICK_REACTIONS = ['👍', '❤️', '😂', '🔥', '😮', '😢'];
 
 export function ChatPanel({ conversation }: { conversation: Conversation }) {
   const queryClient = useQueryClient();
@@ -45,6 +49,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
   const [gameInvite, setGameInvite] = useState({ game: '', mode: '', startsAt: '', note: '' });
   const [recording, setRecording] = useState<null | 'audio' | 'video'>(null);
   const [recElapsed, setRecElapsed] = useState(0);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -158,16 +163,41 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
       clearTimeout(typingTimeout.current);
       typingTimeout.current = setTimeout(() => setTyping(false), 2500);
     };
+    // Reaction added/removed or message deleted → replace it in place.
+    const onUpdate = (p: { conversationId: string; message: Message }) => {
+      if (p.conversationId !== conversation.id) return;
+      setMessages((prev) => prev.map((m) => (m.id === p.message.id ? p.message : m)));
+    };
 
     socket.on('dm:new', onNew);
     socket.on('dm:read', onRead);
     socket.on('dm:typing', onTyping);
+    socket.on('dm:update', onUpdate);
     return () => {
       socket.off('dm:new', onNew);
       socket.off('dm:read', onRead);
       socket.off('dm:typing', onTyping);
+      socket.off('dm:update', onUpdate);
     };
   }, [conversation.id, conversation.other.id, me?.id, queryClient]);
+
+  async function toggleReaction(messageId: string, emoji: string) {
+    setMenuFor(null);
+    try {
+      await api.post(`/conversations/${conversation.id}/messages/${messageId}/react`, { emoji });
+    } catch {
+      /* realtime dm:update will reconcile; ignore transient errors */
+    }
+  }
+
+  async function removeMessage(messageId: string) {
+    setMenuFor(null);
+    try {
+      await api.delete(`/conversations/${conversation.id}/messages/${messageId}`);
+    } catch (err) {
+      setError(errorMessage(err, 'Could not delete message'));
+    }
+  }
 
   async function loadOlder() {
     if (!nextCursor) return;
@@ -371,7 +401,10 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
         </Link>
         <Avatar user={conversation.other} showPresence />
         <div className="min-w-0 flex-1">
-          <p className="truncate font-extrabold text-slate-950 dark:text-white">{conversation.other.displayName}</p>
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="truncate font-extrabold text-slate-950 dark:text-white">{conversation.other.displayName}</p>
+            <GameStatus status={conversation.other.gameStatus} />
+          </div>
           <p className="truncate text-sm font-medium text-slate-500 dark:text-slate-400">
             {online ? (
               <span className="text-green-600 dark:text-green-400">Active now</span>
@@ -459,42 +492,122 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
             );
           }
 
+          const deleted = !!m.deletedAt;
           return (
-            <div key={m.id} className={`mb-2 flex ${mine ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-[82%] overflow-hidden rounded-3xl px-1 py-1 shadow-sm sm:max-w-[75%] ${
-                  mine
-                    ? 'bg-brand text-white'
-                    : 'border border-slate-200 bg-white text-slate-900 dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-100'
-                }`}
-              >
-                {m.imageUrl && (
-                  <img
-                    src={m.imageUrl}
-                    onClick={() => setLightboxUrl(m.imageUrl)}
-                    className="mb-1 max-h-72 w-full cursor-pointer rounded-2xl object-cover"
-                    alt=""
-                  />
+            <div key={m.id} className={`group mb-2 flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
+              <div className={`flex max-w-[88%] items-center gap-1 sm:max-w-[80%] ${mine ? 'flex-row-reverse' : 'flex-row'}`}>
+                <div
+                  className={`overflow-hidden rounded-3xl px-1 py-1 shadow-sm ${
+                    deleted
+                      ? 'border border-dashed border-slate-300 bg-transparent text-slate-400 dark:border-white/15 dark:text-slate-500'
+                      : mine
+                        ? 'bg-brand text-white'
+                        : 'border border-slate-200 bg-white text-slate-900 dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-100'
+                  }`}
+                >
+                  {deleted ? (
+                    <p className="px-3 py-1 text-sm italic">Message deleted</p>
+                  ) : (
+                    <>
+                      {m.imageUrl && (
+                        <img
+                          src={m.imageUrl}
+                          onClick={() => setLightboxUrl(m.imageUrl)}
+                          className="mb-1 max-h-72 w-full cursor-pointer rounded-2xl object-cover"
+                          alt=""
+                        />
+                      )}
+                      {m.audioUrl ? (
+                        <VoiceMessage url={m.audioUrl} durationMs={m.mediaDurationMs} mine={mine} />
+                      ) : invite ? (
+                        <GameInviteCard
+                          invite={invite}
+                          mine={mine}
+                          onJoin={() => {
+                            setText(`I'm in for ${invite.game}${invite.mode ? ` - ${invite.mode}` : ''}.`);
+                            setTimeout(() => inputRef.current?.focus(), 0);
+                          }}
+                        />
+                      ) : (
+                        m.content && <p className="whitespace-pre-wrap break-words px-3 py-1 leading-6">{m.content}</p>
+                      )}
+                    </>
+                  )}
+                  <p className={`px-3 pb-1 text-[11px] ${mine && !deleted ? 'text-white/75' : 'text-slate-500 dark:text-slate-400'}`}>
+                    {relativeTime(m.createdAt)}
+                    {mine && m.readAt && !deleted ? ' - Read' : ''}
+                  </p>
+                </div>
+
+                {/* React / delete control */}
+                {!deleted && (
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setMenuFor((cur) => (cur === m.id ? null : m.id))}
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 opacity-100 transition hover:bg-slate-100 hover:text-brand sm:opacity-0 sm:group-hover:opacity-100 dark:hover:bg-white/10"
+                      aria-label="React or delete"
+                    >
+                      <Smile size={16} />
+                    </button>
+                    {menuFor === m.id && (
+                      <>
+                        <Dismiss onDismiss={() => setMenuFor(null)} />
+                        <div
+                          className={`glass-strong absolute bottom-full z-20 mb-1 flex items-center gap-1 rounded-full p-1 ${
+                            mine ? 'right-0' : 'left-0'
+                          }`}
+                        >
+                          {QUICK_REACTIONS.map((emoji) => (
+                            <button
+                              key={emoji}
+                              type="button"
+                              onClick={() => toggleReaction(m.id, emoji)}
+                              className="flex h-9 w-9 items-center justify-center rounded-full text-lg transition hover:scale-110 hover:bg-black/5 dark:hover:bg-white/10"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                          {mine && (
+                            <button
+                              type="button"
+                              onClick={() => removeMessage(m.id)}
+                              className="flex h-9 w-9 items-center justify-center rounded-full text-rose-500 transition hover:bg-rose-500/10"
+                              aria-label="Delete message"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 )}
-                {m.audioUrl ? (
-                  <VoiceMessage url={m.audioUrl} durationMs={m.mediaDurationMs} mine={mine} />
-                ) : invite ? (
-                  <GameInviteCard
-                    invite={invite}
-                    mine={mine}
-                    onJoin={() => {
-                      setText(`I'm in for ${invite.game}${invite.mode ? ` - ${invite.mode}` : ''}.`);
-                      setTimeout(() => inputRef.current?.focus(), 0);
-                    }}
-                  />
-                ) : (
-                  m.content && <p className="whitespace-pre-wrap break-words px-3 py-1 leading-6">{m.content}</p>
-                )}
-                <p className={`px-3 pb-1 text-[11px] ${mine ? 'text-white/75' : 'text-slate-500 dark:text-slate-400'}`}>
-                  {relativeTime(m.createdAt)}
-                  {mine && m.readAt ? ' - Read' : ''}
-                </p>
               </div>
+
+              {/* Reaction chips */}
+              {m.reactions && m.reactions.length > 0 && (
+                <div className={`mt-1 flex flex-wrap gap-1 px-1 ${mine ? 'justify-end' : 'justify-start'}`}>
+                  {m.reactions.map((r) => {
+                    const mineReact = !!me && r.userIds.includes(me.id);
+                    return (
+                      <button
+                        key={r.emoji}
+                        type="button"
+                        onClick={() => toggleReaction(m.id, r.emoji)}
+                        className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ring-1 transition ${
+                          mineReact
+                            ? 'bg-brand/15 text-brand ring-brand/30 dark:text-rose-300'
+                            : 'bg-slate-100 text-slate-600 ring-slate-200 dark:bg-white/10 dark:text-slate-300 dark:ring-white/10'
+                        }`}
+                      >
+                        <span>{r.emoji}</span>
+                        <span className="tabular-nums">{r.userIds.length}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
