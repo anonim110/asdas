@@ -3,14 +3,38 @@ import { env } from '../config/env';
 import { ApiError } from '../utils/apiError';
 
 function assertMailConfigured() {
-  if (!env.mail.user || !env.mail.pass || !env.mail.from) {
+  const webhookConfigured = env.mail.webhookUrl && env.mail.webhookToken;
+  const smtpConfigured = env.mail.user && env.mail.pass && env.mail.from;
+
+  if (!webhookConfigured && !smtpConfigured) {
     throw new ApiError(503, 'Email delivery is temporarily unavailable');
   }
 }
 
-export async function sendPasswordResetCode(to: string, code: string) {
-  assertMailConfigured();
+async function sendViaWebhook(to: string, code: string) {
+  const response = await fetch(env.mail.webhookUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      token: env.mail.webhookToken,
+      to,
+      code,
+    }),
+    signal: AbortSignal.timeout(15_000),
+  });
 
+  const body = (await response.json().catch(() => null)) as
+    | { ok?: boolean; error?: string }
+    | null;
+
+  if (!response.ok || !body?.ok) {
+    throw new Error(body?.error || `Mail webhook returned ${response.status}`);
+  }
+}
+
+async function sendViaSmtp(to: string, code: string) {
   const transport = nodemailer.createTransport({
     host: env.mail.host,
     port: env.mail.port,
@@ -37,4 +61,15 @@ export async function sendPasswordResetCode(to: string, code: string) {
       </div>
     `,
   });
+}
+
+export async function sendPasswordResetCode(to: string, code: string) {
+  assertMailConfigured();
+
+  if (env.mail.webhookUrl && env.mail.webhookToken) {
+    await sendViaWebhook(to, code);
+    return;
+  }
+
+  await sendViaSmtp(to, code);
 }

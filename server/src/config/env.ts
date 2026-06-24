@@ -60,6 +60,8 @@ export const env = {
   },
 
   mail: {
+    webhookUrl: process.env.MAIL_WEBHOOK_URL ?? '',
+    webhookToken: process.env.MAIL_WEBHOOK_TOKEN ?? '',
     host: process.env.SMTP_HOST ?? 'smtp.gmail.com',
     port: Number(process.env.SMTP_PORT ?? 465),
     secure: (process.env.SMTP_SECURE ?? 'true') === 'true',
