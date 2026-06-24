@@ -83,28 +83,32 @@ export function initSockets(httpServer: HttpServer): Server {
       };
 
     socket.on('call:invite', async ({ toUserId, callType }: { toUserId: string; callType: string }) => {
-      if (typeof toUserId !== 'string') return;
+      if (typeof toUserId !== 'string' || toUserId === userId) return;
+      const [userAId, userBId] = userId < toUserId ? [userId, toUserId] : [toUserId, userId];
       // Block check (either direction) — never connect blocked users.
-      const blocked = await prisma.block
-        .findFirst({
+      const [blocked, conversation, caller] = await Promise.all([
+        prisma.block.findFirst({
           where: {
             OR: [
               { blockerId: userId, blockedId: toUserId },
               { blockerId: toUserId, blockedId: userId },
             ],
           },
-        })
-        .catch(() => null);
-      if (blocked) {
+        }),
+        prisma.conversation.findUnique({
+          where: { userAId_userBId: { userAId, userBId } },
+          select: { id: true },
+        }),
+        prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true, username: true, displayName: true, avatarUrl: true, verified: true },
+        }),
+      ]).catch(() => [null, null, null] as const);
+
+      if (blocked || !conversation || !caller) {
         socket.emit('call:rejected', { fromUserId: toUserId, reason: 'unavailable' });
         return;
       }
-      const caller = await prisma.user
-        .findUnique({
-          where: { id: userId },
-          select: { id: true, username: true, displayName: true, avatarUrl: true, verified: true },
-        })
-        .catch(() => null);
       io.to(userRoom(toUserId)).emit('call:incoming', {
         fromUserId: userId,
         caller,

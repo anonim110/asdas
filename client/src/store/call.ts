@@ -45,6 +45,8 @@ const RTC_CONFIG: RTCConfiguration = {
 let pc: RTCPeerConnection | null = null;
 let peerId: string | null = null; // the other user's id, for signalling
 let pendingCandidates: RTCIceCandidateInit[] = [];
+let boundSocket: ReturnType<typeof getSocket> = null;
+let callTimeout: ReturnType<typeof setTimeout> | null = null;
 
 function socket() {
   return getSocket();
@@ -64,8 +66,16 @@ async function getLocalMedia(type: CallType): Promise<MediaStream> {
 }
 
 export const useCall = create<CallState>((set, get) => {
+  function clearCallTimeout() {
+    if (callTimeout) {
+      clearTimeout(callTimeout);
+      callTimeout = null;
+    }
+  }
+
   // Tears down the peer connection + media and resets to idle.
-  function cleanup() {
+  function cleanup(message: string | null = null) {
+    clearCallTimeout();
     stopRingtone();
     if (pc) {
       pc.onicecandidate = null;
@@ -79,8 +89,29 @@ export const useCall = create<CallState>((set, get) => {
       pc = null;
     }
     get().localStream?.getTracks().forEach((t) => t.stop());
+    get().remoteStream?.getTracks().forEach((t) => t.stop());
     peerId = null;
     pendingCandidates = [];
+
+    const peer = get().peer;
+    if (message && peer) {
+      set({
+        status: 'ended',
+        peer,
+        localStream: null,
+        remoteStream: null,
+        micEnabled: true,
+        camEnabled: true,
+        error: message,
+      });
+      setTimeout(() => {
+        if (get().status === 'ended') {
+          set({ status: 'idle', peer: null, error: null });
+        }
+      }, 2200);
+      return;
+    }
+
     set({
       status: 'idle',
       peer: null,
@@ -108,7 +139,7 @@ export const useCall = create<CallState>((set, get) => {
       if (!pc) return;
       if (pc.connectionState === 'connected') set({ status: 'active' });
       if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-        cleanup();
+        cleanup('Connection lost');
       }
     };
     return conn;
@@ -134,9 +165,10 @@ export const useCall = create<CallState>((set, get) => {
     initialized: false,
 
     init: () => {
-      if (get().initialized) return;
       const s = socket();
       if (!s) return; // socket connects after auth; CallOverlay retries on mount
+      if (s === boundSocket) return;
+      boundSocket = s;
       set({ initialized: true });
 
       s.on('call:incoming', ({ fromUserId, caller, callType }: any) => {
@@ -153,11 +185,17 @@ export const useCall = create<CallState>((set, get) => {
           camEnabled: callType === 'video',
         });
         startRingtone('incoming');
+        clearCallTimeout();
+        callTimeout = setTimeout(() => {
+          s.emit('call:reject', { toUserId: fromUserId, reason: 'timeout' });
+          cleanup();
+        }, 45_000);
       });
 
       // Callee accepted → caller creates and sends the offer.
-      s.on('call:accepted', async () => {
-        if (!pc || get().status !== 'outgoing') return;
+      s.on('call:accepted', async ({ fromUserId }: { fromUserId: string }) => {
+        if (fromUserId !== peerId || !pc || get().status !== 'outgoing') return;
+        clearCallTimeout();
         stopRingtone();
         set({ status: 'connecting' });
         try {
@@ -169,8 +207,8 @@ export const useCall = create<CallState>((set, get) => {
         }
       });
 
-      s.on('call:signal', async ({ data }: any) => {
-        if (!pc || !data) return;
+      s.on('call:signal', async ({ fromUserId, data }: any) => {
+        if (fromUserId !== peerId || !pc || !data) return;
         try {
           if (data.type === 'offer') {
             await pc.setRemoteDescription(new RTCSessionDescription(data));
@@ -191,20 +229,24 @@ export const useCall = create<CallState>((set, get) => {
       });
 
       const endHandlers = ['call:ended', 'call:canceled'];
-      endHandlers.forEach((evt) => s.on(evt, () => cleanup()));
-      s.on('call:rejected', () => {
-        set({ error: 'Call declined' });
-        cleanup();
+      endHandlers.forEach((evt) =>
+        s.on(evt, ({ fromUserId }: { fromUserId: string }) => {
+          if (fromUserId === peerId) cleanup();
+        }),
+      );
+      s.on('call:rejected', ({ fromUserId, reason }: { fromUserId: string; reason?: string }) => {
+        if (fromUserId !== peerId) return;
+        cleanup(reason === 'unavailable' ? 'Call unavailable' : 'Call declined');
       });
-      s.on('call:busy', () => {
-        set({ error: 'User is busy' });
-        cleanup();
+      s.on('call:busy', ({ fromUserId }: { fromUserId: string }) => {
+        if (fromUserId !== peerId) return;
+        cleanup('User is busy');
       });
     },
 
     startCall: async (peer, callType) => {
       if (get().status !== 'idle') return;
-      set({ error: null });
+      set({ status: 'connecting', peer, callType, error: null });
       try {
         const localStream = await getLocalMedia(callType);
         peerId = peer.id;
@@ -219,9 +261,13 @@ export const useCall = create<CallState>((set, get) => {
         });
         socket()?.emit('call:invite', { toUserId: peer.id, callType });
         startRingtone('outgoing');
+        clearCallTimeout();
+        callTimeout = setTimeout(() => {
+          socket()?.emit('call:cancel', { toUserId: peer.id });
+          cleanup('No answer');
+        }, 45_000);
       } catch {
-        set({ error: 'Could not access your microphone/camera' });
-        cleanup();
+        cleanup('Could not access your microphone/camera');
       }
     },
 
@@ -235,9 +281,8 @@ export const useCall = create<CallState>((set, get) => {
         set({ status: 'connecting', localStream, micEnabled: true, camEnabled: callType === 'video' });
         socket()?.emit('call:accept', { toUserId: peerId });
       } catch {
-        set({ error: 'Could not access your microphone/camera' });
         socket()?.emit('call:reject', { toUserId: peerId });
-        cleanup();
+        cleanup('Could not access your microphone/camera');
       }
     },
 

@@ -75,10 +75,17 @@ export function CallOverlay() {
         ? 'Ringing…'
         : status === 'connecting'
           ? 'Connecting…'
+          : status === 'ended'
+            ? error || 'Call ended'
           : mmss;
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-950/95 p-4 text-white backdrop-blur-xl">
+    <div
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-950/95 p-4 text-white backdrop-blur-xl"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${callType === 'video' ? 'Video' : 'Voice'} call with ${peer.displayName || peer.username}`}
+    >
       {/* Remote video (also carries remote audio for voice calls; kept mounted
           but hidden when there's no video so audio still plays). */}
       <video
@@ -111,12 +118,14 @@ export function CallOverlay() {
         <h2 className="text-2xl font-extrabold drop-shadow">{peer.displayName || 'Caller'}</h2>
         {peer.username && <p className="text-sm text-white/70">@{peer.username}</p>}
         <p className="mt-2 text-sm font-medium text-white/80">{statusLabel}</p>
-        {error && <p className="mt-2 text-sm font-semibold text-rose-300">{error}</p>}
+        {error && status !== 'ended' && (
+          <p className="mt-2 text-sm font-semibold text-rose-300">{error}</p>
+        )}
       </div>
 
       {/* Controls */}
       <div className="relative z-10 mt-auto flex w-full flex-col items-center gap-4 pb-4">
-        {status === 'incoming' ? (
+        {status === 'ended' ? null : status === 'incoming' ? (
           <div className="flex items-center gap-10">
             <button
               onClick={reject}
