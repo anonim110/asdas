@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Camera, Monitor, Smartphone, ShieldCheck, LogOut, Loader2 } from 'lucide-react';
+import { Camera, Monitor, Smartphone, ShieldCheck, LogOut, Loader2, Mic, Video } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { useAuth } from '../store/auth';
 import { useTheme } from '../store/theme';
+import { useDevices } from '../store/devices';
 import { soundsMuted, setSoundsMuted } from '../lib/sound';
 import { playMessageSound } from '../lib/sound';
 import { relativeTime } from '../lib/format';
@@ -224,6 +225,8 @@ export function Settings() {
         </div>
       </section>
 
+      <CallDevices />
+
       {user.googleLinked && (
         <section className="card p-4">
           <h2 className="mb-1 text-lg font-bold">Google sign-in</h2>
@@ -249,6 +252,89 @@ export function Settings() {
         </button>
       </section>
     </div>
+  );
+}
+
+// Call device selection — detects the microphones/cameras present on this PC
+// and lets the user choose which ones calls should use (persisted).
+function CallDevices() {
+  const { mics, cams, micId, camId, permission, setMic, setCam, refresh } = useDevices();
+  const [loading, setLoading] = useState(false);
+
+  async function detect() {
+    setLoading(true);
+    await refresh();
+    setLoading(false);
+  }
+
+  const detected = mics.length > 0 || cams.length > 0;
+
+  return (
+    <section className="card p-4">
+      <h2 className="mb-1 text-lg font-bold">Calls &amp; devices</h2>
+      <p className="mb-3 text-sm text-gray-500">
+        Choose the microphone and camera used for voice and video calls.
+      </p>
+
+      {!detected ? (
+        <div className="space-y-2">
+          <button onClick={detect} disabled={loading} className="btn-primary flex items-center gap-2">
+            {loading ? <Loader2 size={16} className="animate-spin" /> : <Mic size={16} />}
+            {loading ? 'Detecting…' : 'Detect my devices'}
+          </button>
+          {permission === 'denied' && (
+            <p className="text-sm text-red-500">
+              Microphone/camera access was blocked. Allow it in your browser to pick a device.
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <label className="block">
+            <span className="mb-1 flex items-center gap-2 text-sm text-gray-500">
+              <Mic size={14} /> Microphone
+            </span>
+            <select
+              className="input"
+              value={micId ?? ''}
+              onChange={(e) => setMic(e.target.value || null)}
+            >
+              <option value="">System default</option>
+              {mics.map((d, i) => (
+                <option key={d.deviceId} value={d.deviceId}>
+                  {d.label || `Microphone ${i + 1}`}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {cams.length > 0 && (
+            <label className="block">
+              <span className="mb-1 flex items-center gap-2 text-sm text-gray-500">
+                <Video size={14} /> Camera
+              </span>
+              <select
+                className="input"
+                value={camId ?? ''}
+                onChange={(e) => setCam(e.target.value || null)}
+              >
+                <option value="">System default</option>
+                {cams.map((d, i) => (
+                  <option key={d.deviceId} value={d.deviceId}>
+                    {d.label || `Camera ${i + 1}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          <button onClick={detect} disabled={loading} className="btn-outline flex items-center gap-2 text-sm">
+            {loading ? <Loader2 size={14} className="animate-spin" /> : null}
+            Refresh device list
+          </button>
+        </div>
+      )}
+    </section>
   );
 }
 

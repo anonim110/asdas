@@ -24,6 +24,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { RightSidebar } from './RightSidebar';
 import { ScrollToTop } from './ScrollToTop';
 import { RealtimeBridge } from './RealtimeBridge';
+import { CallOverlay } from './CallOverlay';
 import { QuickSearch } from './QuickSearch';
 import { UserName } from './UserName';
 
@@ -80,6 +81,7 @@ export function Layout() {
   return (
     <div className="mx-auto flex max-w-[1400px] sm:px-3 xl:px-6">
       <RealtimeBridge />
+      <CallOverlay />
 
       {/* Left navigation (desktop) */}
       <header className="sticky top-0 hidden h-screen shrink-0 flex-col justify-between px-2 py-4 sm:flex xl:w-[285px]">

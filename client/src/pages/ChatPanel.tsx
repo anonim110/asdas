@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Send, ImagePlus, Smile, X } from 'lucide-react';
+import { ArrowLeft, Send, ImagePlus, Smile, X, Phone, Video } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { useAuth } from '../store/auth';
 import { useRealtime } from '../store/realtime';
 import { usePresence } from '../store/presence';
+import { useCall } from '../store/call';
 import { Avatar } from '../components/Avatar';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { Lightbox } from '../components/Lightbox';
@@ -17,6 +18,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
   const queryClient = useQueryClient();
   const me = useAuth((s) => s.user);
   const setDmUnread = useRealtime((s) => s.setDmUnread);
+  const startCall = useCall((s) => s.startCall);
   const [messages, setMessages] = useState<Message[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [text, setText] = useState('');
@@ -202,6 +204,26 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
               `@${conversation.other.username}`
             )}
           </p>
+        </div>
+
+        {/* Voice / video call this friend */}
+        <div className="ml-auto flex items-center gap-1">
+          <button
+            onClick={() => startCall(conversation.other, 'audio')}
+            className="icon-button text-brand"
+            aria-label="Start voice call"
+            title="Voice call"
+          >
+            <Phone size={20} />
+          </button>
+          <button
+            onClick={() => startCall(conversation.other, 'video')}
+            className="icon-button text-brand"
+            aria-label="Start video call"
+            title="Video call"
+          >
+            <Video size={20} />
+          </button>
         </div>
       </div>
 

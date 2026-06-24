@@ -70,6 +70,56 @@ export function initSockets(httpServer: HttpServer): Server {
       }
     });
 
+    // ───────── 1:1 WebRTC calls: relay signalling between the two peers ─────────
+    // The server never sees media; it only forwards SDP offers/answers and ICE
+    // candidates between the caller and callee, tagging each with the sender id.
+    const relayCall =
+      (event: string) =>
+      (payload: { toUserId?: string } & Record<string, unknown>) => {
+        const { toUserId, ...rest } = payload || {};
+        if (typeof toUserId === 'string') {
+          io.to(userRoom(toUserId)).emit(event, { fromUserId: userId, ...rest });
+        }
+      };
+
+    socket.on('call:invite', async ({ toUserId, callType }: { toUserId: string; callType: string }) => {
+      if (typeof toUserId !== 'string') return;
+      // Block check (either direction) — never connect blocked users.
+      const blocked = await prisma.block
+        .findFirst({
+          where: {
+            OR: [
+              { blockerId: userId, blockedId: toUserId },
+              { blockerId: toUserId, blockedId: userId },
+            ],
+          },
+        })
+        .catch(() => null);
+      if (blocked) {
+        socket.emit('call:rejected', { fromUserId: toUserId, reason: 'unavailable' });
+        return;
+      }
+      const caller = await prisma.user
+        .findUnique({
+          where: { id: userId },
+          select: { id: true, username: true, displayName: true, avatarUrl: true, verified: true },
+        })
+        .catch(() => null);
+      io.to(userRoom(toUserId)).emit('call:incoming', {
+        fromUserId: userId,
+        caller,
+        callType: callType === 'video' ? 'video' : 'audio',
+      });
+    });
+
+    socket.on('call:accept', relayCall('call:accepted'));
+    socket.on('call:reject', relayCall('call:rejected'));
+    socket.on('call:cancel', relayCall('call:canceled'));
+    socket.on('call:end', relayCall('call:ended'));
+    socket.on('call:busy', relayCall('call:busy'));
+    // Carries { toUserId, data } where data is an SDP description or ICE candidate.
+    socket.on('call:signal', relayCall('call:signal'));
+
     // Mark a conversation as read; notifies the other participant.
     socket.on('dm:read', async ({ conversationId }: { conversationId: string }) => {
       if (typeof conversationId !== 'string') return;
