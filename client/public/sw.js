@@ -5,7 +5,7 @@
  *   - Everything else (the cross-origin API, socket.io, uploads): passes
  *     straight through to the network — never cached.
  */
-const CACHE = 'murmur-shell-v1';
+const CACHE = 'murmur-shell-v2';
 const SHELL = ['/', '/index.html', '/icon.svg', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
@@ -56,5 +56,24 @@ self.addEventListener('fetch', (event) => {
         .catch(() => cached);
       return cached || network;
     }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const path = event.notification.data?.navigateTo || '/';
+  const destination = new URL(path, self.location.origin).href;
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then(async (clients) => {
+        const existing = clients.find((client) => new URL(client.url).origin === self.location.origin);
+        if (existing) {
+          await existing.navigate(destination);
+          return existing.focus();
+        }
+        return self.clients.openWindow(destination);
+      }),
   );
 });

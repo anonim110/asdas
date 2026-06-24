@@ -160,6 +160,14 @@ function waitForServer(timeoutMs = 30000) {
 
 // ──────────────────────────────── Window ────────────────────────────────────
 function createWindow(url, { devtools = false } = {}) {
+  const appOrigin = (() => {
+    try {
+      return new URL(url).origin;
+    } catch {
+      return null;
+    }
+  })();
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 860,
@@ -180,10 +188,21 @@ function createWindow(url, { devtools = false } = {}) {
     },
   });
 
-  // Allow camera, microphone and notifications without a prompt (the user
-  // already chose to place/answer a call or enable notifications in-app).
-  mainWindow.webContents.session.setPermissionRequestHandler((_wc, permission, cb) => {
-    cb(['media', 'mediaKeySystem', 'notifications', 'clipboard-read', 'clipboard-sanitized-write'].includes(permission));
+  // Grant only permissions Murmur uses, and only to the configured app origin.
+  const allowedPermissions = new Set(['media', 'notifications', 'clipboard-sanitized-write']);
+  const isTrustedOrigin = (value) => {
+    try {
+      return !!appOrigin && new URL(value).origin === appOrigin;
+    } catch {
+      return false;
+    }
+  };
+  mainWindow.webContents.session.setPermissionRequestHandler((wc, permission, cb, details) => {
+    const requestingUrl = details?.requestingUrl || wc.getURL();
+    cb(isTrustedOrigin(requestingUrl) && allowedPermissions.has(permission));
+  });
+  mainWindow.webContents.session.setPermissionCheckHandler((_wc, permission, requestingOrigin) => {
+    return isTrustedOrigin(requestingOrigin) && allowedPermissions.has(permission);
   });
 
   mainWindow.once('ready-to-show', () => mainWindow.show());
@@ -196,28 +215,29 @@ function createWindow(url, { devtools = false } = {}) {
     }
   });
 
-  // Keep in-app navigation inside the window, but open links to *other* origins
-  // (external articles, media on a CDN, etc.) in the user's real browser.
-  const appOrigin = (() => {
-    try {
-      return new URL(url).origin;
-    } catch {
-      return null;
-    }
-  })();
-
   mainWindow.webContents.setWindowOpenHandler(({ url: target }) => {
-    if (/^https?:\/\//i.test(target)) {
-      shell.openExternal(target);
-      return { action: 'deny' };
+    try {
+      const parsed = new URL(target);
+      if (appOrigin && parsed.origin === appOrigin) {
+        mainWindow.loadURL(target);
+      } else if (['http:', 'https:', 'mailto:', 'tel:'].includes(parsed.protocol)) {
+        shell.openExternal(target);
+      }
+    } catch {
+      // Deny malformed and unknown URLs.
     }
-    return { action: 'allow' };
+    return { action: 'deny' };
   });
 
   mainWindow.webContents.on('will-navigate', (event, target) => {
-    if (appOrigin && new URL(target).origin !== appOrigin && /^https?:/i.test(target)) {
+    try {
+      const parsed = new URL(target);
+      if (appOrigin && parsed.origin !== appOrigin && ['http:', 'https:'].includes(parsed.protocol)) {
+        event.preventDefault();
+        shell.openExternal(target);
+      }
+    } catch {
       event.preventDefault();
-      shell.openExternal(target);
     }
   });
 

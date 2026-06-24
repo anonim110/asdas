@@ -11,15 +11,21 @@ declare global {
 
 let permissionAsked = false;
 
-export function requestNotifyPermission() {
-  if (permissionAsked) return;
+export type NotifyPermission = NotificationPermission | 'unsupported';
+
+export function getNotifyPermission(): NotifyPermission {
+  return typeof Notification === 'undefined' ? 'unsupported' : Notification.permission;
+}
+
+export async function requestNotifyPermission(): Promise<NotifyPermission> {
+  if (typeof Notification === 'undefined') return 'unsupported';
+  if (Notification.permission !== 'default') return Notification.permission;
+  if (permissionAsked) return Notification.permission;
   permissionAsked = true;
   try {
-    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      Notification.requestPermission().catch(() => {});
-    }
+    return await Notification.requestPermission();
   } catch {
-    /* Notification API unavailable */
+    return Notification.permission;
   }
 }
 
@@ -38,27 +44,48 @@ interface NativeNotice {
   tag?: string;
 }
 
-export function showNativeNotification({ title, body, icon, navigateTo, tag }: NativeNotice) {
+function showWindowNotification({ title, body, icon, navigateTo, tag }: NativeNotice) {
+  const notification = new Notification(title, {
+    body: body || undefined,
+    icon: icon || undefined,
+    tag,
+  });
+
+  notification.onclick = () => {
+    if (window.murmurDesktop?.focus) window.murmurDesktop.focus();
+    else window.focus();
+    if (navigateTo) {
+      window.dispatchEvent(new CustomEvent('murmur:navigate', { detail: navigateTo }));
+    }
+    notification.close();
+  };
+}
+
+export async function showNativeNotification(notice: NativeNotice) {
   try {
     if (typeof Notification === 'undefined') return;
     if (Notification.permission !== 'granted') return;
     if (appInForeground()) return;
 
-    const notification = new Notification(title, {
-      body: body || undefined,
-      icon: icon || undefined,
-      tag,
-    });
+    // Electron supports clickable window notifications directly. Mobile PWAs
+    // require ServiceWorkerRegistration.showNotification instead.
+    if (window.murmurDesktop?.isDesktop || !('serviceWorker' in navigator)) {
+      showWindowNotification(notice);
+      return;
+    }
 
-    notification.onclick = () => {
-      // Bring the desktop window back from the tray (or focus the browser tab).
-      if (window.murmurDesktop?.focus) window.murmurDesktop.focus();
-      else window.focus();
-      if (navigateTo) {
-        window.dispatchEvent(new CustomEvent('murmur:navigate', { detail: navigateTo }));
-      }
-      notification.close();
-    };
+    const registration = await navigator.serviceWorker.getRegistration();
+    if (registration) {
+      await registration.showNotification(notice.title, {
+        body: notice.body || undefined,
+        icon: notice.icon || undefined,
+        tag: notice.tag,
+        data: { navigateTo: notice.navigateTo || '/' },
+      });
+      return;
+    }
+
+    showWindowNotification(notice);
   } catch {
     /* ignore notification failures */
   }

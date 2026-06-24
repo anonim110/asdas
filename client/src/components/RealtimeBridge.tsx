@@ -6,7 +6,7 @@ import { playMessageSound } from '../lib/sound';
 import { useAuth } from '../store/auth';
 import { useRealtime } from '../store/realtime';
 import { usePresence } from '../store/presence';
-import { requestNotifyPermission, showNativeNotification } from '../lib/notify';
+import { showNativeNotification } from '../lib/notify';
 import type { Conversation, Message, Notification as Notif } from '../types';
 
 // Human-readable text + deep link for a realtime notification.
@@ -52,9 +52,6 @@ export function RealtimeBridge() {
         // ignore — counts default to 0
       }
     })();
-
-    // Ask for OS notification permission (granted by default in the desktop app).
-    requestNotifyPermission();
 
     const socket = connectSocket();
 

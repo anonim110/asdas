@@ -53,7 +53,10 @@ export function createApp() {
           ...(env.isProd && !env.isDesktop ? {} : { 'upgrade-insecure-requests': null }),
         },
       },
-      hsts: env.isProd ? { maxAge: 15552000, includeSubDomains: true } : false,
+      hsts:
+        env.isProd && !env.isDesktop
+          ? { maxAge: 15552000, includeSubDomains: true }
+          : false,
     }),
   );
 

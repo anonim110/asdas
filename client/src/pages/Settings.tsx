@@ -1,13 +1,14 @@
 import { useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Camera, Monitor, Smartphone, ShieldCheck, LogOut, Loader2, Mic, Video } from 'lucide-react';
+import { Bell, Camera, Monitor, Smartphone, ShieldCheck, LogOut, Loader2, Mic, Video } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { useAuth } from '../store/auth';
 import { useTheme } from '../store/theme';
 import { useDevices } from '../store/devices';
 import { soundsMuted, setSoundsMuted } from '../lib/sound';
 import { playMessageSound } from '../lib/sound';
+import { getNotifyPermission, requestNotifyPermission, type NotifyPermission } from '../lib/notify';
 import { relativeTime } from '../lib/format';
 import { PageHeader } from '../components/PageHeader';
 import type { AuthUser, Session } from '../types';
@@ -36,6 +37,7 @@ export function Settings() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [muted, setMuted] = useState(soundsMuted());
+  const [notifyPermission, setNotifyPermission] = useState<NotifyPermission>(getNotifyPermission);
 
   const avatarInput = useRef<HTMLInputElement>(null);
   const bannerInput = useRef<HTMLInputElement>(null);
@@ -198,7 +200,7 @@ export function Settings() {
       {/* Notifications */}
       <section className="card p-4">
         <h2 className="mb-3 text-lg font-bold">Notifications</h2>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div>
             <p className="font-medium">Message sounds</p>
             <p className="text-sm text-gray-500">Play a chime when a new direct message arrives.</p>
@@ -222,6 +224,30 @@ export function Settings() {
               }`}
             />
           </button>
+        </div>
+        <div className="mt-4 flex items-center justify-between gap-4 border-t border-slate-200/70 pt-4 dark:border-white/10">
+          <div>
+            <p className="font-medium">System notifications</p>
+            <p className="text-sm text-gray-500">
+              {notifyPermission === 'granted'
+                ? 'Enabled for messages and social activity.'
+                : notifyPermission === 'denied'
+                  ? 'Blocked in browser settings.'
+                  : notifyPermission === 'unsupported'
+                    ? 'Not supported by this browser.'
+                    : 'Show alerts while Murmur is in the background.'}
+            </p>
+          </div>
+          {notifyPermission === 'default' && (
+            <button
+              type="button"
+              onClick={async () => setNotifyPermission(await requestNotifyPermission())}
+              className="btn-outline shrink-0 px-3 text-sm"
+            >
+              <Bell size={16} />
+              Enable
+            </button>
+          )}
         </div>
       </section>
 
