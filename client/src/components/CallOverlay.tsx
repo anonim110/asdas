@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Phone,
   PhoneOff,
@@ -68,9 +68,30 @@ export function CallOverlay() {
   } = useCall();
 
   const { mics, micId, refresh } = useDevices();
-  const localRef = useRef<HTMLVideoElement>(null);
-  const remoteRef = useRef<HTMLVideoElement>(null);
   const [elapsed, setElapsed] = useState(0);
+
+  // Callback refs bind the stream (and start playback) whenever the <video>
+  // mounts OR the stream changes. This is more robust than an effect: toggling
+  // the camera can remount the element, and a ref callback always re-runs on
+  // mount, so srcObject can never get "lost" and show a black preview.
+  const setLocalVideo = useCallback(
+    (el: HTMLVideoElement | null) => {
+      if (el) {
+        el.srcObject = localStream;
+        el.play().catch(() => {});
+      }
+    },
+    [localStream],
+  );
+  const setRemoteVideo = useCallback(
+    (el: HTMLVideoElement | null) => {
+      if (el) {
+        el.srcObject = remoteStream;
+        el.play().catch(() => {});
+      }
+    },
+    [remoteStream],
+  );
 
   // Attach the socket signalling listeners once the socket is ready.
   useEffect(() => {
@@ -82,14 +103,6 @@ export function CallOverlay() {
     }, 1000);
     return () => clearInterval(t);
   }, [init]);
-
-  // Bind media streams to the <video> elements.
-  useEffect(() => {
-    if (localRef.current) localRef.current.srcObject = localStream;
-  }, [localStream, status, callType, screenSharing]);
-  useEffect(() => {
-    if (remoteRef.current) remoteRef.current.srcObject = remoteStream;
-  }, [remoteStream, status, callType]);
 
   // Populate the device list (for the in-call mic picker) once connected.
   useEffect(() => {
@@ -144,20 +157,24 @@ export function CallOverlay() {
       {/* Remote video (also carries remote audio for voice calls; kept mounted
           but hidden when there's no video so audio still plays). */}
       <video
-        ref={remoteRef}
+        ref={setRemoteVideo}
         autoPlay
         playsInline
         className={showVideoStage ? 'absolute inset-0 h-full w-full bg-black object-contain' : 'hidden'}
       />
 
-      {/* Local preview (video / screen share) */}
-      {showLocalPreview && (
+      {/* Local preview (video / screen share). Kept mounted for the whole
+          video call and hidden via opacity when the camera is off, so the
+          element (and its bound stream) is never torn down mid-call. */}
+      {(isVideo || screenSharing) && (
         <video
-          ref={localRef}
+          ref={setLocalVideo}
           autoPlay
           playsInline
           muted
-          className="absolute right-4 top-4 z-20 h-40 w-28 rounded-2xl border border-cyan-300/40 bg-black object-cover shadow-[0_0_30px_-6px_rgba(34,211,238,0.6)] sm:h-48 sm:w-36"
+          className={`absolute right-4 top-4 z-20 h-40 w-28 rounded-2xl border border-cyan-300/40 bg-black object-cover shadow-[0_0_30px_-6px_rgba(34,211,238,0.6)] transition-opacity sm:h-48 sm:w-36 ${
+            showLocalPreview ? 'opacity-100' : 'opacity-0'
+          }`}
         />
       )}
 

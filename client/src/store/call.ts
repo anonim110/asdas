@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { getSocket } from '../lib/socket';
 import { useDevices } from './devices';
+import { useAuth } from './auth';
 import { startRingtone, stopRingtone } from '../lib/ringtone';
 
 export type CallType = 'audio' | 'video';
@@ -54,6 +55,12 @@ let callTimeout: ReturnType<typeof setTimeout> | null = null;
 let disconnectTimer: ReturnType<typeof setTimeout> | null = null;
 // While screen-sharing, the camera track is parked here so it can be restored.
 let cameraTrack: MediaStreamTrack | null = null;
+// "Perfect negotiation" state: avoids glare when both sides (or one side
+// repeatedly) renegotiate — e.g. enabling the camera or sharing the screen
+// mid-call. Without this, a colliding offer throws and the video track is
+// silently never negotiated, so the camera "sometimes" doesn't appear.
+let makingOffer = false;
+let ignoreOffer = false;
 
 function socket() {
   return getSocket();
@@ -63,13 +70,46 @@ function signal(data: unknown) {
   if (peerId) socket()?.emit('call:signal', { toUserId: peerId, data });
 }
 
+// Deterministic, symmetric roles: the peer with the smaller user id is "polite"
+// and yields on collisions; the other ignores the colliding offer.
+function isPolite(): boolean {
+  const myId = useAuth.getState().user?.id ?? '';
+  return !!peerId && myId < peerId;
+}
+
+// Create + send a renegotiation offer, but only from a stable state and never
+// while we're already making one.
+async function makeOffer() {
+  if (!pc || makingOffer || pc.signalingState !== 'stable') return;
+  try {
+    makingOffer = true;
+    const offer = await pc.createOffer();
+    if (pc.signalingState !== 'stable') return; // changed while awaiting
+    await pc.setLocalDescription(offer);
+    signal(pc.localDescription);
+  } catch {
+    /* ignore — connectionstatechange will surface real failures */
+  } finally {
+    makingOffer = false;
+  }
+}
+
 async function getLocalMedia(type: CallType): Promise<MediaStream> {
   const { micId, camId } = useDevices.getState();
-  return navigator.mediaDevices.getUserMedia({
-    audio: micId ? { deviceId: { exact: micId } } : true,
-    video:
-      type === 'video' ? (camId ? { deviceId: { exact: camId } } : true) : false,
-  });
+  const wantVideo = type === 'video';
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: micId ? { deviceId: { exact: micId } } : true,
+      video: wantVideo ? (camId ? { deviceId: { exact: camId } } : true) : false,
+    });
+  } catch (err) {
+    // A previously-saved mic/camera may be unplugged; retry with the default
+    // devices so the call still works instead of failing outright.
+    if (micId || camId) {
+      return navigator.mediaDevices.getUserMedia({ audio: true, video: wantVideo });
+    }
+    throw err;
+  }
 }
 
 export const useCall = create<CallState>((set, get) => {
@@ -107,6 +147,8 @@ export const useCall = create<CallState>((set, get) => {
     get().remoteStream?.getTracks().forEach((t) => t.stop());
     cameraTrack?.stop();
     cameraTrack = null;
+    makingOffer = false;
+    ignoreOffer = false;
     peerId = null;
     pendingCandidates = [];
 
@@ -230,18 +272,21 @@ export const useCall = create<CallState>((set, get) => {
         }, 45_000);
       });
 
-      // Callee accepted → caller creates and sends the offer.
+      // Callee accepted → caller creates and sends the initial offer.
       s.on('call:accepted', async ({ fromUserId }: { fromUserId: string }) => {
         if (fromUserId !== peerId || !pc || get().status !== 'outgoing') return;
         clearCallTimeout();
         stopRingtone();
         set({ status: 'connecting' });
         try {
+          makingOffer = true;
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
           signal(pc.localDescription);
         } catch {
           cleanup();
+        } finally {
+          makingOffer = false;
         }
       });
 
@@ -249,20 +294,33 @@ export const useCall = create<CallState>((set, get) => {
         if (fromUserId !== peerId || !pc || !data) return;
         try {
           if (data.type === 'offer') {
+            // Glare handling: if an offer arrives while we have our own pending
+            // offer, the impolite peer ignores it and the polite peer rolls back.
+            const collision = makingOffer || pc.signalingState !== 'stable';
+            ignoreOffer = !isPolite() && collision;
+            if (ignoreOffer) return;
+            if (collision && pc.signalingState === 'have-local-offer') {
+              await pc.setLocalDescription({ type: 'rollback' } as RTCSessionDescriptionInit);
+            }
             await pc.setRemoteDescription(new RTCSessionDescription(data));
             await drainCandidates();
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             signal(pc.localDescription);
           } else if (data.type === 'answer') {
+            // Ignore a stray/duplicate answer that doesn't match our state.
+            if (pc.signalingState !== 'have-local-offer') return;
             await pc.setRemoteDescription(new RTCSessionDescription(data));
             await drainCandidates();
           } else if (data.candidate) {
-            if (pc.remoteDescription) await pc.addIceCandidate(data.candidate).catch(() => {});
-            else pendingCandidates.push(data.candidate);
+            if (pc.remoteDescription) {
+              await pc.addIceCandidate(data.candidate).catch(() => {});
+            } else {
+              pendingCandidates.push(data.candidate);
+            }
           }
         } catch {
-          /* ignore malformed signalling */
+          /* ignore malformed / out-of-order signalling */
         }
       });
 
@@ -365,18 +423,22 @@ export const useCall = create<CallState>((set, get) => {
       if (!pc || get().status !== 'active') return;
       try {
         const { camId } = useDevices.getState();
-        const cam = await navigator.mediaDevices.getUserMedia({
-          video: camId ? { deviceId: { exact: camId } } : true,
-        });
+        let cam: MediaStream;
+        try {
+          cam = await navigator.mediaDevices.getUserMedia({
+            video: camId ? { deviceId: { exact: camId } } : true,
+          });
+        } catch {
+          // Saved camera unavailable → fall back to the default camera.
+          cam = await navigator.mediaDevices.getUserMedia({ video: true });
+        }
         const track = cam.getVideoTracks()[0];
         if (!track) return;
         stream.addTrack(track);
         pc.addTrack(track, stream);
         set({ localStream: stream, callType: 'video', camEnabled: true });
 
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        signal(pc.localDescription);
+        await makeOffer();
       } catch {
         set({ error: 'Could not access your camera' });
         setTimeout(() => {
@@ -412,9 +474,7 @@ export const useCall = create<CallState>((set, get) => {
         stream.addTrack(screenTrack);
         pc.addTrack(screenTrack, stream);
         set({ localStream: stream, screenSharing: true, callType: 'video', camEnabled: true });
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        signal(pc.localDescription);
+        await makeOffer();
       }
 
       // The browser's own "Stop sharing" control ends the track.
@@ -446,9 +506,7 @@ export const useCall = create<CallState>((set, get) => {
           /* sender already gone */
         }
         set({ localStream: stream, screenSharing: false, callType: 'audio', camEnabled: false });
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        signal(pc.localDescription);
+        await makeOffer();
       } else {
         set({ screenSharing: false });
       }
