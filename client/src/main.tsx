@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import { Toaster } from './components/Toaster';
 import { primeAudioOnInteraction } from './lib/sound';
+import './lib/enhance'; // PWA install/offline + keyboard shortcuts
 import './index.css';
 
 primeAudioOnInteraction();
