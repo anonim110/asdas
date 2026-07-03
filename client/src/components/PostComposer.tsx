@@ -7,6 +7,7 @@ import { toast } from '../store/toast';
 import { Avatar } from './Avatar';
 import { ProgressRing } from './ProgressRing';
 import { EmojiPicker } from './EmojiPicker';
+import { MentionAutocomplete, detectToken, type ActiveToken, type Suggestion } from './MentionAutocomplete';
 import type { Post } from '../types';
 
 const MAX = 280;
@@ -44,7 +45,61 @@ export function PostComposer({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [token, setToken] = useState<ActiveToken | null>(null);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [activeSuggestion, setActiveSuggestion] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  function syncToken(value: string, caret: number) {
+    const next = detectToken(value, caret);
+    setToken(next);
+    if (!next) setSuggestions([]);
+    setActiveSuggestion(0);
+  }
+
+  function onTextChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setText(e.target.value);
+    syncToken(e.target.value, e.target.selectionStart ?? e.target.value.length);
+  }
+
+  // Replace the active @/# token with the chosen suggestion and re-place caret.
+  function applySuggestion(s: Suggestion) {
+    if (!token) return;
+    const before = text.slice(0, token.start);
+    const after = text.slice(token.end);
+    const next = before + s.value + after;
+    setText(next);
+    setToken(null);
+    setSuggestions([]);
+    const caret = before.length + s.value.length;
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(caret, caret);
+      }
+    });
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (token && suggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveSuggestion((i) => (i + 1) % suggestions.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveSuggestion((i) => (i - 1 + suggestions.length) % suggestions.length);
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        applySuggestion(suggestions[activeSuggestion]);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setToken(null);
+        setSuggestions([]);
+      }
+    }
+  }
 
   const remaining = MAX - text.length;
   const overLimit = remaining < 0;
@@ -82,6 +137,8 @@ export function PostComposer({
 
       setText('');
       setFiles([]);
+      setToken(null);
+      setSuggestions([]);
       // Refresh feeds / threads that may now include this post.
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (communityId) queryClient.invalidateQueries({ queryKey: ['community-feed'] });
@@ -103,15 +160,29 @@ export function PostComposer({
   return (
     <div className="flex gap-3">
       <Avatar user={user} linkable={false} />
-      <div className="flex-1">
+      <div className="relative flex-1">
         <textarea
+          ref={textareaRef}
           autoFocus={autoFocus}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={onTextChange}
+          onKeyDown={onKeyDown}
+          onSelect={(e) => syncToken(text, (e.target as HTMLTextAreaElement).selectionStart ?? 0)}
+          onBlur={() => setTimeout(() => setToken(null), 120)}
           placeholder={placeholder}
           rows={compact ? 2 : 3}
           className="w-full resize-none bg-transparent text-[17px] leading-7 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
         />
+        {token && (
+          <MentionAutocomplete
+            token={token}
+            suggestions={suggestions}
+            setSuggestions={setSuggestions}
+            active={activeSuggestion}
+            setActive={setActiveSuggestion}
+            onPick={applySuggestion}
+          />
+        )}
 
         {files.length > 0 && (
           <div className={`grid gap-2 ${files.length > 1 ? 'grid-cols-2' : 'grid-cols-1'} mb-2`}>

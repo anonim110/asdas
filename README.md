@@ -42,6 +42,8 @@ The project runs out-of-the-box on **SQLite** (zero install) and can switch to
   tap / arrow-key navigation
 - Unseen/seen rings, view receipts with a per-story viewers list (author only),
   delete your own stories
+- Reply to a story or send a quick emoji reaction — delivered as a DM with a
+  thumbnail of the story
 
 **Notifications** (realtime)
 - Likes, reposts, quotes, replies, follows, @mentions
@@ -51,6 +53,7 @@ The project runs out-of-the-box on **SQLite** (zero install) and can switch to
 - 1:1 conversations, typing indicators, read receipts
 - Reply to messages (quoted snippet, click to jump back) and edit sent
   messages with an "edited" label
+- Share any post into a conversation as a rich card that deep-links back to it
 
 **Extras**
 - Light / dark theme (persisted) with smooth transitions
@@ -61,6 +64,7 @@ The project runs out-of-the-box on **SQLite** (zero install) and can switch to
 - In-app toast notifications for actions
 - Full-screen media lightbox with keyboard navigation
 - Compose character-count ring
+- @mention and #hashtag autocomplete while composing (keyboard-navigable)
 - "Who to follow" suggestions
 - Per-post view counts
 - Skeleton loading states

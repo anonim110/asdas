@@ -13,11 +13,13 @@ import {
   BarChart2,
   Pencil,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toast';
 import { relativeTime, compactNumber } from '../lib/format';
+import { encodePostShare } from '../lib/messageCards';
 import { Avatar } from './Avatar';
 import { RichText } from './RichText';
 import { MediaGrid } from './MediaGrid';
@@ -26,7 +28,7 @@ import { Dismiss } from './Dismiss';
 import { PostComposer } from './PostComposer';
 import { UserName } from './UserName';
 import { GameStatus } from './GameStatus';
-import type { Post, PostCounts, ViewerState, PostAnalytics } from '../types';
+import type { Conversation, Post, PostCounts, ViewerState, PostAnalytics } from '../types';
 
 interface Props {
   post: Post;
@@ -57,6 +59,8 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
   const [editBusy, setEditBusy] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [analytics, setAnalytics] = useState<PostAnalytics | null>(null);
+  const [shareMenu, setShareMenu] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
 
   const isOwner = me?.id === display.author.id;
 
@@ -371,23 +375,50 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
               </span>
             </button>
 
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                navigator.clipboard?.writeText(`${window.location.origin}/post/${display.id}`);
-                toast('Link copied to clipboard', 'success');
-              }}
-              className="group flex min-h-11 items-center rounded-full transition hover:text-accent"
-              title="Copy link"
-              aria-label="Copy link"
-            >
-              <span className="rounded-full p-1.5 group-hover:bg-accent/10">
-                <Share size={18} />
-              </span>
-            </button>
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShareMenu((o) => !o);
+                }}
+                className="group flex min-h-11 items-center rounded-full transition hover:text-accent"
+                title="Share"
+                aria-label="Share post"
+              >
+                <span className="rounded-full p-1.5 group-hover:bg-accent/10">
+                  <Share size={18} />
+                </span>
+              </button>
+              {shareMenu && <Dismiss onDismiss={() => setShareMenu(false)} />}
+              {shareMenu && (
+                <div className="panel absolute right-0 z-10 mt-1 w-52 overflow-hidden py-1" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={() => {
+                      setShareMenu(false);
+                      navigator.clipboard?.writeText(`${window.location.origin}/post/${display.id}`);
+                      toast('Link copied to clipboard', 'success');
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-rose-50 dark:hover:bg-white/[0.07]"
+                  >
+                    <Share size={16} /> Copy link
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShareMenu(false);
+                      setSendOpen(true);
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-rose-50 dark:hover:bg-white/[0.07]"
+                  >
+                    <MessageCircle size={16} /> Send via message
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
+
+      {sendOpen && <SendPostModal post={display} content={content} onClose={() => setSendOpen(false)} />}
 
       <Modal open={quoteOpen} onClose={() => setQuoteOpen(false)} title="Quote post">
         <PostComposer quotedPostId={display.id} autoFocus placeholder="Add a comment" onPosted={() => setQuoteOpen(false)} />
@@ -458,6 +489,69 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
         )}
       </Modal>
     </article>
+  );
+}
+
+// Picker for sharing a post into one of your existing conversations.
+function SendPostModal({ post, content, onClose }: { post: Post; content: string | null; onClose: () => void }) {
+  const [sendingTo, setSendingTo] = useState<string | null>(null);
+  const { data: conversations, isLoading } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: async () =>
+      (await api.get<{ conversations: Conversation[] }>('/conversations')).data.conversations,
+  });
+
+  async function send(conversation: Conversation) {
+    if (sendingTo) return;
+    setSendingTo(conversation.id);
+    try {
+      await api.post(`/conversations/${conversation.id}/messages`, {
+        content: encodePostShare({
+          postId: post.id,
+          authorUsername: post.author.username,
+          authorName: post.author.displayName,
+          excerpt: content ?? '',
+        }),
+      });
+      toast(`Sent to ${conversation.other.displayName}`, 'success');
+      onClose();
+    } catch {
+      toast('Could not send the post', 'error');
+      setSendingTo(null);
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Send post">
+      <div onClick={(e) => e.stopPropagation()}>
+        {isLoading ? (
+          <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">Loading…</p>
+        ) : !conversations?.length ? (
+          <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+            No conversations yet. Visit a profile to start one.
+          </p>
+        ) : (
+          <div className="max-h-80 overflow-y-auto py-1">
+            {conversations.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                disabled={!!sendingTo}
+                onClick={() => send(c)}
+                className="flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition hover:bg-rose-50 disabled:opacity-60 dark:hover:bg-white/[0.06]"
+              >
+                <Avatar user={c.other} linkable={false} />
+                <div className="min-w-0 flex-1">
+                  <UserName user={c.other} className="max-w-full" compact />
+                  <p className="truncate text-sm text-slate-500 dark:text-slate-400">@{c.other.username}</p>
+                </div>
+                <span className="text-sm font-bold text-brand">{sendingTo === c.id ? 'Sending…' : 'Send'}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </Modal>
   );
 }
 

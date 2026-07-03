@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Send, ImagePlus, Smile, X, Phone, Video, Search, Gamepad2, Mic, CircleDot, Trash2, Reply, Pencil } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
@@ -21,6 +21,7 @@ import { mediaErrorDetails, openMediaSettings, requestUserMedia } from '../lib/m
 import type { MediaAccessKind } from '../lib/desktop';
 import { relativeTime } from '../lib/format';
 import { encodeGameInvite, messagePreview, parseGameInvite } from '../lib/gameInvite';
+import { isEmojiOnly, parsePostShare, parseStoryReply } from '../lib/messageCards';
 import {
   canRecordMedia,
   extensionForMime,
@@ -33,6 +34,7 @@ const QUICK_REACTIONS = ['👍', '❤️', '😂', '🔥', '😮', '😢'];
 
 export function ChatPanel({ conversation }: { conversation: Conversation }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const me = useAuth((s) => s.user);
   const setDmUnread = useRealtime((s) => s.setDmUnread);
   const startCall = useCall((s) => s.startCall);
@@ -263,7 +265,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
     if (m.videoNoteUrl) return '⭕ Video message';
     const invite = parseGameInvite(m.content);
     if (invite) return `🎮 ${invite.game}`;
-    if (m.content) return m.content;
+    if (m.content) return messagePreview(m.content) || m.content;
     if (m.imageUrl) return '📷 Photo';
     return 'Message';
   }
@@ -576,6 +578,8 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
         {visibleMessages.map((m) => {
           const mine = m.senderId === me?.id;
           const invite = parseGameInvite(m.content);
+          const storyReply = parseStoryReply(m.content);
+          const postShare = parsePostShare(m.content);
 
           // Round video "circles" render bare (no chat bubble).
           if (m.videoNoteUrl) {
@@ -597,7 +601,10 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
           }
 
           const deleted = !!m.deletedAt;
-          const editable = mine && !deleted && !m.audioUrl && !m.videoNoteUrl && !!m.content && !invite;
+          // Structured cards (invites, story replies, shared posts) carry JSON
+          // in their content, so editing them as text would corrupt the card.
+          const editable =
+            mine && !deleted && !m.audioUrl && !m.videoNoteUrl && !!m.content && !invite && !storyReply && !postShare;
           return (
             <div
               key={m.id}
@@ -665,6 +672,59 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
                             setTimeout(() => inputRef.current?.focus(), 0);
                           }}
                         />
+                      ) : storyReply ? (
+                        <div className="px-2 py-1.5">
+                          <p className={`mb-1.5 text-xs font-semibold ${mine ? 'text-white/75' : 'text-slate-500 dark:text-slate-400'}`}>
+                            {mine ? 'You replied to their story' : 'Replied to your story'}
+                          </p>
+                          <div className="flex items-end gap-2.5">
+                            <button
+                              type="button"
+                              onClick={() => storyReply.mediaType === 'IMAGE' && setLightboxUrl(storyReply.mediaUrl)}
+                              className="shrink-0 overflow-hidden rounded-xl border-l-4 border-brand/70 transition active:scale-95"
+                              aria-label="View story"
+                            >
+                              {storyReply.mediaType === 'VIDEO' ? (
+                                <video src={storyReply.mediaUrl} muted playsInline className="h-24 w-16 object-cover" />
+                              ) : (
+                                <img src={storyReply.mediaUrl} className="h-24 w-16 object-cover" alt="Story" />
+                              )}
+                            </button>
+                            {storyReply.text &&
+                              (isEmojiOnly(storyReply.text) ? (
+                                <span className="pb-1 text-4xl leading-none">{storyReply.text}</span>
+                              ) : (
+                                <p className="whitespace-pre-wrap break-words pb-1 leading-6">{storyReply.text}</p>
+                              ))}
+                          </div>
+                        </div>
+                      ) : postShare ? (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/post/${postShare.postId}`)}
+                          className={`block w-56 max-w-full px-2 py-1.5 text-left transition active:scale-[0.98]`}
+                        >
+                          <p className={`mb-1 text-xs font-semibold ${mine ? 'text-white/75' : 'text-slate-500 dark:text-slate-400'}`}>
+                            Shared a post
+                          </p>
+                          <span
+                            className={`block rounded-xl border p-2.5 ${
+                              mine
+                                ? 'border-white/25 bg-white/10'
+                                : 'border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/[0.05]'
+                            }`}
+                          >
+                            <span className="block truncate text-sm font-bold">
+                              {postShare.authorName}{' '}
+                              <span className={mine ? 'font-medium text-white/70' : 'font-medium text-slate-500 dark:text-slate-400'}>
+                                @{postShare.authorUsername}
+                              </span>
+                            </span>
+                            {postShare.excerpt && (
+                              <span className="mt-0.5 line-clamp-3 block text-sm leading-5">{postShare.excerpt}</span>
+                            )}
+                          </span>
+                        </button>
                       ) : (
                         m.content && <p className="whitespace-pre-wrap break-words px-3 py-1 leading-6">{m.content}</p>
                       )}

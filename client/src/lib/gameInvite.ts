@@ -32,7 +32,14 @@ export function parseGameInvite(value: string | null | undefined): GameInvite | 
   }
 }
 
+import { parsePostShare, parseStoryReply } from './messageCards';
+
 export function messagePreview(value: string | null | undefined): string {
   const invite = parseGameInvite(value);
-  return invite ? `Game invite: ${invite.game}` : value ?? '';
+  if (invite) return `Game invite: ${invite.game}`;
+  const storyReply = parseStoryReply(value);
+  if (storyReply) return storyReply.text ? `Story reply: ${storyReply.text}` : 'Replied to a story';
+  const postShare = parsePostShare(value);
+  if (postShare) return `Shared @${postShare.authorUsername}'s post`;
+  return value ?? '';
 }

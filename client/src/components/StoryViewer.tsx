@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight, Eye, Trash2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, Send, Trash2, X } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { getSocket } from '../lib/socket';
+import { encodeStoryReply } from '../lib/messageCards';
 import { useAuth } from '../store/auth';
 import { useToast } from '../store/toast';
 import { Avatar } from './Avatar';
 import { relativeTime } from '../lib/format';
-import type { StoryGroup, StoryViewerEntry } from '../types';
+import type { Conversation, StoryGroup, StoryViewerEntry } from '../types';
+
+const QUICK_STORY_REACTIONS = ['❤️', '😂', '😮', '🔥', '👏', '😢'];
 
 const IMAGE_DURATION_MS = 5000;
 const TICK_MS = 50;
@@ -39,6 +42,9 @@ export function StoryViewer({
   const [paused, setPaused] = useState(false);
   const [viewersOpen, setViewersOpen] = useState(false);
   const [viewers, setViewers] = useState<StoryViewerEntry[] | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [replyFocused, setReplyFocused] = useState(false);
+  const [replySending, setReplySending] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const elapsedRef = useRef(0);
 
@@ -58,6 +64,8 @@ export function StoryViewer({
     setProgress(0);
     elapsedRef.current = 0;
     setViewersOpen(false);
+    setReplyText('');
+    setReplyFocused(false);
   };
 
   const goNext = useCallback(() => {
@@ -124,10 +132,12 @@ export function StoryViewer({
     };
   }, [mine, queryClient]);
 
+  const held = paused || viewersOpen || replyFocused;
+
   // Timer for image stories (videos drive progress via timeupdate).
   useEffect(() => {
     if (!story || story.mediaType !== 'IMAGE') return;
-    if (paused || viewersOpen) return;
+    if (held) return;
     const timer = setInterval(() => {
       elapsedRef.current += TICK_MS;
       const p = elapsedRef.current / IMAGE_DURATION_MS;
@@ -135,19 +145,21 @@ export function StoryViewer({
       else setProgress(p);
     }, TICK_MS);
     return () => clearInterval(timer);
-  }, [story?.id, story?.mediaType, paused, viewersOpen, goNext]);
+  }, [story?.id, story?.mediaType, held, goNext]);
 
   // Pause/resume the video element together with the hold-to-pause state.
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (paused || viewersOpen) video.pause();
+    if (held) video.pause();
     else video.play().catch(() => {});
-  }, [paused, viewersOpen, story?.id]);
+  }, [held, story?.id]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const typing = (e.target as HTMLElement | null)?.tagName === 'INPUT';
       if (e.key === 'Escape') onClose();
+      else if (typing) return;
       else if (e.key === 'ArrowRight') goNext();
       else if (e.key === 'ArrowLeft') goPrev();
     };
@@ -167,6 +179,35 @@ export function StoryViewer({
       setViewers(data.viewers);
     } catch {
       setViewers([]);
+    }
+  }
+
+  // Sends a reply (text or quick emoji) to the story's author as a DM
+  // carrying a compact story card.
+  async function sendReply(text: string) {
+    if (!story || !group || replySending) return;
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setReplySending(true);
+    try {
+      const { data } = await api.post<{ conversation: Conversation }>('/conversations', {
+        username: group.author.username,
+      });
+      await api.post(`/conversations/${data.conversation.id}/messages`, {
+        content: encodeStoryReply({
+          mediaUrl: story.mediaUrl,
+          mediaType: story.mediaType,
+          caption: story.caption ?? '',
+          text: trimmed,
+        }),
+      });
+      setReplyText('');
+      setReplyFocused(false);
+      toast('Reply sent', 'success');
+    } catch (err) {
+      toast(errorMessage(err, 'Could not send reply'), 'error');
+    } finally {
+      setReplySending(false);
     }
   }
 
@@ -291,16 +332,60 @@ export function StoryViewer({
         <button className="absolute inset-y-0 left-0 z-10 w-1/3" onClick={goPrev} aria-label="Previous" />
         <button className="absolute inset-y-0 right-0 z-10 w-2/3" onClick={goNext} aria-label="Next" />
 
-        {/* Caption + own-story viewers */}
-        <div className="absolute inset-x-0 bottom-0 z-20 space-y-2 bg-gradient-to-t from-black/70 to-transparent p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+        {/* Caption + own-story viewers / reply bar */}
+        <div className="absolute inset-x-0 bottom-0 z-20 space-y-2.5 bg-gradient-to-t from-black/75 to-transparent p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
           {story.caption && <p className="text-sm font-medium text-white">{story.caption}</p>}
-          {mine && (
+          {mine ? (
             <button
               onClick={openViewers}
               className="flex items-center gap-1.5 text-sm font-semibold text-white/90 transition hover:text-white"
             >
               <Eye size={16} /> {story.viewCount} {story.viewCount === 1 ? 'view' : 'views'}
             </button>
+          ) : (
+            <div className="space-y-2.5">
+              {replyFocused && (
+                <div className="flex animate-slide-up items-center justify-between px-1">
+                  {QUICK_STORY_REACTIONS.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      disabled={replySending}
+                      onClick={() => sendReply(emoji)}
+                      className="flex h-11 w-11 items-center justify-center rounded-full text-2xl transition hover:scale-125 active:scale-95"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <form
+                className="flex items-center gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  sendReply(replyText);
+                }}
+              >
+                <input
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  onFocus={() => setReplyFocused(true)}
+                  onBlur={() => setTimeout(() => setReplyFocused(false), 150)}
+                  placeholder={`Reply to ${group.author.displayName}...`}
+                  className="min-h-11 min-w-0 flex-1 rounded-full border border-white/30 bg-white/10 px-4 text-sm text-white outline-none backdrop-blur transition placeholder:text-white/60 focus:border-white/60 focus:bg-white/15"
+                />
+                {replyText.trim() && (
+                  <button
+                    type="submit"
+                    disabled={replySending}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand text-white shadow-lift transition active:scale-90 disabled:opacity-60"
+                    aria-label="Send reply"
+                  >
+                    <Send size={18} />
+                  </button>
+                )}
+              </form>
+            </div>
           )}
         </div>
 
