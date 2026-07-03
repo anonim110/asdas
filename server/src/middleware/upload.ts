@@ -12,27 +12,32 @@ export const uploadRoot = path.resolve(process.cwd(), env.upload.dir);
 export const uploadPublicPath = '/uploads';
 fs.mkdirSync(uploadRoot, { recursive: true });
 
-const ALLOWED = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-  'video/mp4',
-  'video/webm',
-  'video/quicktime',
+// Allowed upload types mapped to the extension the file is stored under.
+// The extension MUST come from this map (never from the client-supplied
+// filename): express.static picks the response Content-Type from the stored
+// extension, so honouring an attacker-chosen name like "x.html" or "x.svg"
+// would let uploaded files execute as HTML/SVG (stored XSS).
+const ALLOWED: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/gif': '.gif',
+  'video/mp4': '.mp4',
+  'video/webm': '.webm',
+  'video/quicktime': '.mov',
   // Voice messages & round video notes recorded by the browser.
-  'audio/webm',
-  'audio/ogg',
-  'audio/mpeg',
-  'audio/mp4',
-  'audio/wav',
-  'audio/x-m4a',
-]);
+  'audio/webm': '.weba',
+  'audio/ogg': '.ogg',
+  'audio/mpeg': '.mp3',
+  'audio/mp4': '.m4a',
+  'audio/wav': '.wav',
+  'audio/x-m4a': '.m4a',
+};
 
 const diskStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadRoot),
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase().slice(0, 10);
+    const ext = ALLOWED[file.mimetype] ?? '.bin';
     const name = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${ext}`;
     cb(null, name);
   },
@@ -54,7 +59,7 @@ export const upload = multer({
       : diskStorage,
   limits: { fileSize: env.upload.maxBytes },
   fileFilter: (_req, file, cb) => {
-    if (ALLOWED.has(file.mimetype)) cb(null, true);
+    if (file.mimetype in ALLOWED) cb(null, true);
     else cb(new ApiError(400, `Unsupported file type: ${file.mimetype}`));
   },
 });
@@ -126,6 +131,9 @@ export async function serveStoredUpload(
     'Content-Length': String(stored.size),
     'Cache-Control': 'public, max-age=31536000, immutable',
     'X-Content-Type-Options': 'nosniff',
+    // Uploads must never execute as documents, even if a browser mishandles
+    // the declared media type.
+    'Content-Security-Policy': "default-src 'none'; sandbox",
   });
   res.send(Buffer.from(stored.data));
 }

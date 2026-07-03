@@ -72,6 +72,18 @@ export default {
           '0%': { transform: 'scale(0)', opacity: '0.8' },
           '100%': { transform: 'scale(2.4)', opacity: '0' },
         },
+        'message-in': {
+          '0%': { opacity: '0', transform: 'translateY(8px) scale(0.97)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
+        'story-in': {
+          '0%': { opacity: '0', transform: 'scale(1.04)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        'typing-dot': {
+          '0%, 60%, 100%': { transform: 'translateY(0)', opacity: '0.4' },
+          '30%': { transform: 'translateY(-3px)', opacity: '1' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.3s ease-out',
@@ -85,6 +97,9 @@ export default {
         pop: 'pop 0.4s ease-out',
         'toast-in': 'toast-in 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
         'heart-burst': 'heart-burst 0.5s ease-out forwards',
+        'message-in': 'message-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'story-in': 'story-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'typing-dot': 'typing-dot 1.2s ease-in-out infinite',
       },
     },
   },

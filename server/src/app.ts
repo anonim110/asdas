@@ -74,7 +74,17 @@ export function createApp() {
   // Production uploads are read from PostgreSQL when Cloudinary is absent.
   // Local development continues to serve files from the uploads directory.
   app.get(`${uploadPublicPath}/:id`, asyncHandler(serveStoredUpload));
-  app.use(uploadPublicPath, express.static(uploadRoot));
+  app.use(
+    uploadPublicPath,
+    express.static(uploadRoot, {
+      // Uploads are opaque media, never documents: forbid MIME sniffing and
+      // neutralise anything that would execute if opened directly.
+      setHeaders: (res) => {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+      },
+    }),
+  );
   app.use(uploadPublicPath, notFoundHandler);
 
   // Apply the global rate limiter to the API surface.

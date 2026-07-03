@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Eye, Trash2, X } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
+import { getSocket } from '../lib/socket';
 import { useAuth } from '../store/auth';
 import { useToast } from '../store/toast';
 import { Avatar } from './Avatar';
@@ -26,8 +27,10 @@ export function StoryViewer({
   const me = useAuth((s) => s.user);
   const queryClient = useQueryClient();
   const toast = useToast((s) => s.show);
-  const [gIdx, setGIdx] = useState(initialGroup);
-  const [sIdx, setSIdx] = useState(() => {
+  // Track the current group by author id (stable across cache refreshes that
+  // reorder or remove groups), and the story by index within that group.
+  const [authorId, setAuthorId] = useState<string | undefined>(groups[initialGroup]?.author.id);
+  const [sIdxRaw, setSIdx] = useState(() => {
     // Start a group at its first unseen story.
     const first = groups[initialGroup]?.stories.findIndex((s) => !s.viewed) ?? 0;
     return first === -1 ? 0 : first;
@@ -39,40 +42,52 @@ export function StoryViewer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const elapsedRef = useRef(0);
 
-  const group = groups[gIdx];
+  const gIdx = groups.findIndex((g) => g.author.id === authorId);
+  const group = gIdx === -1 ? undefined : groups[gIdx];
+  const sIdx = group ? Math.min(sIdxRaw, group.stories.length - 1) : 0;
   const story = group?.stories[sIdx];
   const mine = !!me && group?.author.id === me.id;
 
-  const goNext = useCallback(() => {
+  // Close when the current group disappears from the cache (e.g. its last
+  // story was deleted or expired during a refresh).
+  useEffect(() => {
+    if (!group) onClose();
+  }, [group, onClose]);
+
+  const resetTimer = () => {
     setProgress(0);
     elapsedRef.current = 0;
     setViewersOpen(false);
+  };
+
+  const goNext = useCallback(() => {
+    if (!group) return;
+    resetTimer();
     if (sIdx + 1 < group.stories.length) {
       setSIdx(sIdx + 1);
     } else if (gIdx + 1 < groups.length) {
-      setGIdx(gIdx + 1);
+      setAuthorId(groups[gIdx + 1].author.id);
       setSIdx(0);
     } else {
       onClose();
     }
-  }, [gIdx, sIdx, group, groups.length, onClose]);
+  }, [gIdx, sIdx, group, groups, onClose]);
 
   const goPrev = useCallback(() => {
-    setProgress(0);
-    elapsedRef.current = 0;
-    setViewersOpen(false);
+    if (!group) return;
+    resetTimer();
     if (sIdx > 0) {
       setSIdx(sIdx - 1);
     } else if (gIdx > 0) {
       const prev = groups[gIdx - 1];
-      setGIdx(gIdx - 1);
+      setAuthorId(prev.author.id);
       setSIdx(prev.stories.length - 1);
     }
-  }, [gIdx, sIdx, groups]);
+  }, [gIdx, sIdx, group, groups]);
 
   // Mark the visible story as viewed and reflect it in the stories cache.
   useEffect(() => {
-    if (!story || mine || story.viewed) return;
+    if (!story || !group || mine || story.viewed) return;
     api.post(`/stories/${story.id}/view`).catch(() => {});
     queryClient.setQueryData<StoryGroup[]>(['stories'], (current) =>
       current?.map((g) =>
@@ -86,6 +101,28 @@ export function StoryViewer({
       ),
     );
   }, [story?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Live view counter for the author: bump the count when someone watches
+  // the story that is currently open.
+  useEffect(() => {
+    if (!mine) return;
+    const socket = getSocket();
+    if (!socket) return;
+    const onViewed = (p: { storyId: string }) => {
+      queryClient.setQueryData<StoryGroup[]>(['stories'], (current) =>
+        current?.map((g) => ({
+          ...g,
+          stories: g.stories.map((s) =>
+            s.id === p.storyId ? { ...s, viewCount: s.viewCount + 1 } : s,
+          ),
+        })),
+      );
+    };
+    socket.on('story:viewed', onViewed);
+    return () => {
+      socket.off('story:viewed', onViewed);
+    };
+  }, [mine, queryClient]);
 
   // Timer for image stories (videos drive progress via timeupdate).
   useEffect(() => {
@@ -134,15 +171,27 @@ export function StoryViewer({
   }
 
   async function removeStory() {
+    if (!story || !group) return;
     try {
-      await api.delete(`/stories/${story!.id}`);
+      await api.delete(`/stories/${story.id}`);
       toast('Story deleted');
-      await queryClient.invalidateQueries({ queryKey: ['stories'] });
-      // Move on locally: the cache refresh will rebuild the bar; keep the
-      // viewer usable by advancing (or closing when it was the only story).
-      if (group.stories.length <= 1) onClose();
-      else if (sIdx >= group.stories.length - 1) setSIdx(Math.max(0, sIdx - 1));
-      group.stories.splice(sIdx, 1);
+      // Remove the story from the cache immutably; empty groups drop out and
+      // the "group disappeared" effect closes the viewer if needed.
+      const removedId = story.id;
+      queryClient.setQueryData<StoryGroup[]>(['stories'], (current) =>
+        (current ?? [])
+          .map((g) =>
+            g.author.id !== group.author.id
+              ? g
+              : {
+                  ...g,
+                  stories: g.stories.filter((s) => s.id !== removedId),
+                  allViewed: g.stories.filter((s) => s.id !== removedId).every((s) => s.viewed),
+                }
+          )
+          .filter((g) => g.stories.length > 0),
+      );
+      setSIdx((cur) => Math.max(0, cur - 1));
       setProgress(0);
       elapsedRef.current = 0;
     } catch (err) {
@@ -150,7 +199,7 @@ export function StoryViewer({
     }
   }
 
-  if (!story) return null;
+  if (!story || !group) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/95 animate-fade-in">
@@ -183,7 +232,9 @@ export function StoryViewer({
           {group.stories.map((s, i) => (
             <div key={s.id} className="h-1 flex-1 overflow-hidden rounded-full bg-white/25">
               <div
-                className="h-full rounded-full bg-white"
+                className={`h-full rounded-full bg-white ${
+                  i === sIdx ? 'transition-[width] duration-100 ease-linear' : ''
+                }`}
                 style={{ width: i < sIdx ? '100%' : i === sIdx ? `${progress * 100}%` : '0%' }}
               />
             </div>
@@ -224,7 +275,7 @@ export function StoryViewer({
               src={story.mediaUrl}
               autoPlay
               playsInline
-              className="max-h-full w-full object-contain"
+              className="max-h-full w-full animate-story-in object-contain"
               onTimeUpdate={(e) => {
                 const v = e.currentTarget;
                 if (v.duration > 0) setProgress(v.currentTime / v.duration);
@@ -232,7 +283,7 @@ export function StoryViewer({
               onEnded={goNext}
             />
           ) : (
-            <img key={story.id} src={story.mediaUrl} className="max-h-full w-full object-contain" alt="" />
+            <img key={story.id} src={story.mediaUrl} className="max-h-full w-full animate-story-in object-contain" alt="" />
           )}
         </div>
 
@@ -255,7 +306,7 @@ export function StoryViewer({
 
         {/* Viewers sheet */}
         {viewersOpen && (
-          <div className="absolute inset-x-0 bottom-0 z-30 max-h-[55%] overflow-y-auto rounded-t-2xl bg-white p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-2xl dark:bg-[#0b0c15]">
+          <div className="absolute inset-x-0 bottom-0 z-30 max-h-[55%] animate-slide-up overflow-y-auto rounded-t-2xl bg-white p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-2xl dark:bg-[#0b0c15]">
             <div className="mb-3 flex items-center justify-between">
               <p className="font-bold text-slate-950 dark:text-white">Viewers</p>
               <button onClick={() => setViewersOpen(false)} className="icon-button" aria-label="Close viewers">

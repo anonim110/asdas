@@ -223,6 +223,14 @@ button {
 }
 
 @layer utilities {
+  /* Hide scrollbars on horizontal strips (story bar) without disabling scroll. */
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Skeleton shimmer effect */
   .skeleton {
     @apply relative overflow-hidden bg-slate-200/80 dark:bg-white/10;

@@ -112,11 +112,13 @@ async function getVisibleStory(storyId: string, userId: string) {
 export async function markStoryViewed(storyId: string, userId: string) {
   const story = await getVisibleStory(storyId, userId);
   if (story.authorId === userId) return;
-  await prisma.storyView.upsert({
+  const existing = await prisma.storyView.findUnique({
     where: { storyId_userId: { storyId, userId } },
-    create: { storyId, userId },
-    update: {},
   });
+  if (existing) return;
+  // A concurrent duplicate insert can still race past the check; swallow it
+  // so repeat views never error and never double-notify.
+  await prisma.storyView.create({ data: { storyId, userId } }).catch(() => null);
   // Let the author's open viewer update its live view counter.
   emitToUser(story.authorId, 'story:viewed', { storyId });
 }

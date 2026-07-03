@@ -61,11 +61,24 @@ export function StoriesBar() {
   const list = groups ?? [];
   const myGroup = list.find((g) => g.author.id === me.id) ?? null;
   const others = list.filter((g) => g.author.id !== me.id);
-  // Hide the bar entirely only while the first load is in flight.
-  if (!groups) return null;
+
+  // Skeleton row while the first load is in flight, so the feed below
+  // doesn't jump when the bar appears.
+  if (!groups) {
+    return (
+      <div className="card flex gap-3 overflow-hidden px-3 py-3">
+        {Array.from({ length: 7 }, (_, i) => (
+          <div key={i} className="flex w-16 shrink-0 flex-col items-center gap-1.5">
+            <div className="skeleton h-[54px] w-[54px] rounded-full" />
+            <div className="skeleton h-2 w-10 rounded-full" />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
-    <div className="card overflow-x-auto px-3 py-3">
+    <div className="card scrollbar-none overflow-x-auto px-3 py-3">
       <input
         ref={fileRef}
         type="file"
@@ -127,7 +140,7 @@ function StoryRing({
 }) {
   const ring =
     state === 'unseen'
-      ? 'bg-gradient-to-tr from-amber-400 via-rose-500 to-fuchsia-500'
+      ? 'bg-[conic-gradient(from_210deg,#f59e0b,#f43f5e,#d946ef,#f59e0b)]'
       : state === 'seen'
         ? 'bg-slate-300 dark:bg-white/20'
         : 'bg-transparent';
@@ -136,9 +149,9 @@ function StoryRing({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-16 shrink-0 flex-col items-center gap-1 outline-none transition active:scale-95"
+      className="group flex w-16 shrink-0 flex-col items-center gap-1 outline-none transition duration-200 active:scale-95"
     >
-      <div className="relative">
+      <div className="relative transition duration-200 group-hover:scale-105">
         <div className={`rounded-full p-[2.5px] ${ring}`}>
           <div className="rounded-full bg-white p-[2px] dark:bg-[#07080f]">
             <Avatar user={author} size="lg" linkable={false} />

@@ -172,10 +172,28 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
       clearTimeout(typingTimeout.current);
       typingTimeout.current = setTimeout(() => setTyping(false), 2500);
     };
-    // Reaction added/removed or message deleted → replace it in place.
+    // Reaction added/removed, message edited or deleted → replace it in place.
     const onUpdate = (p: { conversationId: string; message: Message }) => {
       if (p.conversationId !== conversation.id) return;
       setMessages((prev) => prev.map((m) => (m.id === p.message.id ? p.message : m)));
+      // Keep the sidebar preview in sync when the conversation's latest
+      // message was edited or deleted.
+      queryClient.setQueryData<Conversation[]>(['conversations'], (current) =>
+        current?.map((c) =>
+          c.id === conversation.id && c.lastMessage?.id === p.message.id
+            ? {
+                ...c,
+                lastMessage: {
+                  ...c.lastMessage,
+                  content: p.message.deletedAt ? 'Message deleted' : p.message.content,
+                  imageUrl: p.message.imageUrl,
+                  audioUrl: p.message.audioUrl,
+                  videoNoteUrl: p.message.videoNoteUrl,
+                },
+              }
+            : c,
+        ),
+      );
     };
 
     socket.on('dm:new', onNew);
@@ -567,7 +585,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
                 ref={(el) => {
                   messageRefs.current[m.id] = el;
                 }}
-                className={`mb-3 flex flex-col ${mine ? 'items-end' : 'items-start'}`}
+                className={`mb-3 flex animate-message-in flex-col ${mine ? 'items-end' : 'items-start'}`}
               >
                 <VideoCircle url={m.videoNoteUrl} />
                 <p className="mt-1 px-2 text-[11px] text-slate-500 dark:text-slate-400">
@@ -586,7 +604,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
               ref={(el) => {
                 messageRefs.current[m.id] = el;
               }}
-              className={`group mb-2 flex flex-col rounded-2xl transition-colors duration-500 ${
+              className={`group mb-2 flex animate-message-in flex-col rounded-2xl transition-colors duration-500 ${
                 highlightId === m.id ? 'bg-brand/10' : ''
               } ${mine ? 'items-end' : 'items-start'}`}
             >
@@ -751,7 +769,20 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
             </div>
           );
         })}
-        {typing && <p className="px-1 text-sm font-medium text-slate-500 dark:text-slate-400">{conversation.other.displayName} is typing...</p>}
+        {typing && (
+          <div className="flex animate-message-in items-center gap-2 px-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+            <span>{conversation.other.displayName} is typing</span>
+            <span className="flex items-end gap-0.5 pb-0.5">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="h-1.5 w-1.5 animate-typing-dot rounded-full bg-slate-400 dark:bg-slate-500"
+                  style={{ animationDelay: `${i * 0.15}s` }}
+                />
+              ))}
+            </span>
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 
