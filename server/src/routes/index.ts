@@ -6,6 +6,7 @@ import feedRoutes from './feed.routes';
 import notificationRoutes from './notification.routes';
 import messageRoutes from './message.routes';
 import communityRoutes from './community.routes';
+import storyRoutes from './story.routes';
 import discoverRoutes from './discover.routes';
 
 const router = Router();
@@ -19,6 +20,7 @@ router.use('/feed', feedRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/conversations', messageRoutes);
 router.use('/communities', communityRoutes);
+router.use('/stories', storyRoutes);
 router.use('/', discoverRoutes);
 
 export default router;

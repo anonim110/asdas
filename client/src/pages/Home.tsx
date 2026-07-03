@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../lib/api';
 import { PageHeader } from '../components/PageHeader';
 import { PostComposer } from '../components/PostComposer';
+import { StoriesBar } from '../components/StoriesBar';
 import { Feed } from '../components/Feed';
 import type { Post } from '../types';
 
@@ -18,6 +19,8 @@ export function Home() {
           <TabButton active={tab === 'following'} onClick={() => setTab('following')} label="Following" />
         </div>
       </PageHeader>
+
+      <StoriesBar />
 
       <div className="card px-4 py-4">
         <PostComposer />

@@ -32,7 +32,40 @@ function groupReactions(reactions: Array<{ userId: string; emoji: string }>) {
   return [...map.entries()].map(([emoji, userIds]) => ({ emoji, userIds }));
 }
 
-const reactionInclude = { reactions: { select: { userId: true, emoji: true } } } as const;
+const messageInclude = {
+  reactions: { select: { userId: true, emoji: true } },
+  replyTo: {
+    select: {
+      id: true,
+      senderId: true,
+      content: true,
+      imageUrl: true,
+      audioUrl: true,
+      videoNoteUrl: true,
+      deletedAt: true,
+    },
+  },
+} as const;
+
+// Compact snippet of the message being replied to, rendered inside the bubble.
+function serializeReplyTo(r: any) {
+  if (!r) return null;
+  const deleted = Boolean(r.deletedAt);
+  return {
+    id: r.id,
+    senderId: r.senderId,
+    content: deleted ? null : r.content ?? null,
+    kind: deleted
+      ? 'deleted'
+      : r.audioUrl
+        ? 'voice'
+        : r.videoNoteUrl
+          ? 'video'
+          : r.imageUrl
+            ? 'image'
+            : 'text',
+  };
+}
 
 // Public message shape. Soft-deleted messages drop their content/media.
 function serializeMessage(m: any) {
@@ -46,7 +79,9 @@ function serializeMessage(m: any) {
     audioUrl: deleted ? null : m.audioUrl ?? null,
     videoNoteUrl: deleted ? null : m.videoNoteUrl ?? null,
     mediaDurationMs: m.mediaDurationMs ?? null,
+    editedAt: m.editedAt ?? null,
     deletedAt: m.deletedAt ?? null,
+    replyTo: deleted ? null : serializeReplyTo(m.replyTo),
     reactions: groupReactions(m.reactions ?? []),
     readAt: m.readAt ?? null,
     createdAt: m.createdAt,
@@ -56,7 +91,7 @@ function serializeMessage(m: any) {
 // Re-fetch a message with reactions and push it to both participants.
 async function emitMessageUpdate(conversationId: string, messageId: string) {
   const [fresh, conv] = await Promise.all([
-    prisma.message.findUnique({ where: { id: messageId }, include: reactionInclude }),
+    prisma.message.findUnique({ where: { id: messageId }, include: messageInclude }),
     prisma.conversation.findUnique({ where: { id: conversationId } }),
   ]);
   if (!fresh || !conv) return null;
@@ -163,7 +198,7 @@ export async function getMessages(conversationId: string, userId: string, cursor
     where: { conversationId },
     orderBy: { createdAt: 'desc' },
     take: limit + 1,
-    include: reactionInclude,
+    include: messageInclude,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
   const hasMore = items.length > limit;
@@ -177,6 +212,7 @@ interface MessageAttachments {
   audioUrl?: string;
   videoNoteUrl?: string;
   mediaDurationMs?: number;
+  replyToId?: string;
 }
 
 export async function sendMessage(
@@ -187,11 +223,20 @@ export async function sendMessage(
 ) {
   const conv = await assertParticipant(conversationId, senderId);
   const text = content.trim();
-  const { imageUrl, audioUrl, videoNoteUrl, mediaDurationMs } = attachments;
+  const { imageUrl, audioUrl, videoNoteUrl, mediaDurationMs, replyToId } = attachments;
   const hasMedia = Boolean(imageUrl || audioUrl || videoNoteUrl);
   if (!text && !hasMedia) throw ApiError.badRequest('Message cannot be empty');
   const otherId = conv.userAId === senderId ? conv.userBId : conv.userAId;
   await ensureNotBlocked(senderId, otherId);
+
+  // A reply must target a message inside the same conversation.
+  if (replyToId) {
+    const target = await prisma.message.findFirst({
+      where: { id: replyToId, conversationId },
+      select: { id: true },
+    });
+    if (!target) throw ApiError.badRequest('The message you are replying to was not found');
+  }
 
   const [message] = await prisma.$transaction([
     prisma.message.create({
@@ -203,7 +248,9 @@ export async function sendMessage(
         audioUrl,
         videoNoteUrl,
         mediaDurationMs: mediaDurationMs ?? null,
+        replyToId: replyToId ?? null,
       },
+      include: messageInclude,
     }),
     prisma.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } }),
   ]);
@@ -238,6 +285,34 @@ export async function reactToMessage(
   } else {
     await prisma.messageReaction.create({ data: { messageId, userId, emoji } });
   }
+  return emitMessageUpdate(conversationId, messageId);
+}
+
+// Edit the text of your own message; notifies both participants.
+export async function editMessage(
+  conversationId: string,
+  messageId: string,
+  userId: string,
+  content: string,
+) {
+  await assertParticipant(conversationId, userId);
+  const message = await prisma.message.findFirst({
+    where: { id: messageId, conversationId },
+    select: { id: true, senderId: true, deletedAt: true, audioUrl: true, videoNoteUrl: true },
+  });
+  if (!message) throw ApiError.notFound('Message not found');
+  if (message.senderId !== userId) throw ApiError.forbidden('You can only edit your own messages');
+  if (message.deletedAt) throw ApiError.badRequest('Cannot edit a deleted message');
+  if (message.audioUrl || message.videoNoteUrl) {
+    throw ApiError.badRequest('Voice and video messages cannot be edited');
+  }
+  const text = content.trim();
+  if (!text) throw ApiError.badRequest('Message cannot be empty');
+
+  await prisma.message.update({
+    where: { id: messageId },
+    data: { content: text, editedAt: new Date() },
+  });
   return emitMessageUpdate(conversationId, messageId);
 }
 

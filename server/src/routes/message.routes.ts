@@ -10,6 +10,7 @@ import {
   sendMessageSchema,
   cursorQuerySchema,
   reactMessageSchema,
+  editMessageSchema,
 } from '../validators/schemas';
 
 const router = Router();
@@ -36,6 +37,12 @@ router.post(
   writeLimiter,
   validate({ body: reactMessageSchema }),
   asyncHandler(message.reactMessage),
+);
+router.patch(
+  '/:id/messages/:mid',
+  writeLimiter,
+  validate({ body: editMessageSchema }),
+  asyncHandler(message.editMessage),
 );
 router.delete('/:id/messages/:mid', asyncHandler(message.deleteMessage));
 

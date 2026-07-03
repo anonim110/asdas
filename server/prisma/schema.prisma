@@ -74,6 +74,10 @@ model User {
   communityMemberships CommunityMember[]
   communityMessages    CommunityMessage[] @relation("CommunityMessageSender")
 
+  // Stories (24h ephemeral photo/video)
+  stories    Story[]     @relation("AuthorStories")
+  storyViews StoryView[] @relation("StoryViews")
+
   @@index([username])
 }
 
@@ -356,9 +360,15 @@ model Message {
   audioUrl        String? // voice message
   videoNoteUrl    String? // round "video circle" message
   mediaDurationMs Int? // length of a voice/video note, for the player
+  editedAt        DateTime? // text was edited after sending
   deletedAt       DateTime? // soft-deleted ("message deleted") so threads stay intact
   readAt          DateTime?
   createdAt       DateTime     @default(now())
+
+  // Threaded reply to another message in the same conversation.
+  replyToId String?
+  replyTo   Message?  @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   Message[] @relation("MessageReplies")
 
   reactions       MessageReaction[]
 
@@ -377,6 +387,38 @@ model MessageReaction {
 
   @@unique([messageId, userId, emoji])
   @@index([messageId])
+}
+
+// ──────────────────── Stories ────────────────────
+
+// A 24-hour ephemeral photo/video story shown in the stories bar.
+model Story {
+  id        String   @id @default(cuid())
+  authorId  String
+  author    User     @relation("AuthorStories", fields: [authorId], references: [id], onDelete: Cascade)
+  mediaUrl  String
+  // One of: IMAGE | VIDEO.
+  mediaType String
+  caption   String? // max length enforced by validation (200)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  views StoryView[]
+
+  @@index([authorId, createdAt])
+  @@index([expiresAt])
+}
+
+// A view receipt: who has seen a story (also powers the "seen" ring state).
+model StoryView {
+  storyId  String
+  story    Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation("StoryViews", fields: [userId], references: [id], onDelete: Cascade)
+  viewedAt DateTime @default(now())
+
+  @@id([storyId, userId])
+  @@index([userId])
 }
 
 // ──────────────────── Communities (groups) ────────────────────

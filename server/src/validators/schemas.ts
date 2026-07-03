@@ -71,6 +71,12 @@ export const updatePostSchema = z.object({
   content: z.string().max(280, 'Posts are limited to 280 characters').optional(),
 });
 
+// ─────────────────────── Stories ───────────────────────
+
+export const createStorySchema = z.object({
+  caption: z.string().max(200, 'Captions are limited to 200 characters').optional(),
+});
+
 // ─────────────────────── Messages ───────────────────────
 
 export const startConversationSchema = z.object({
@@ -82,6 +88,12 @@ export const sendMessageSchema = z.object({
   content: z.string().max(2000).optional(),
   // Length of a voice message or video note (ms), sent alongside the file.
   durationMs: z.coerce.number().int().nonnegative().max(86_400_000).optional(),
+  // Reply to another message in the same conversation.
+  replyToId: z.string().cuid().optional(),
+});
+
+export const editMessageSchema = z.object({
+  content: z.string().min(1, 'Message cannot be empty').max(2000),
 });
 
 export const reactMessageSchema = z.object({

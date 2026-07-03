@@ -41,8 +41,19 @@ export async function sendMessage(req: Request, res: Response) {
     audioUrl,
     videoNoteUrl,
     mediaDurationMs: durationMs,
+    replyToId: req.body.replyToId,
   });
   res.status(201).json({ message });
+}
+
+export async function editMessage(req: Request, res: Response) {
+  const message = await messageService.editMessage(
+    req.params.id,
+    req.params.mid,
+    req.userId!,
+    req.body.content,
+  );
+  res.json({ message });
 }
 
 export async function markRead(req: Request, res: Response) {

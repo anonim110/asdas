@@ -122,6 +122,13 @@ export interface Conversation {
   updatedAt: string;
 }
 
+export interface MessageReplySnippet {
+  id: string;
+  senderId: string;
+  content: string | null;
+  kind: 'text' | 'image' | 'voice' | 'video' | 'deleted';
+}
+
 export interface Message {
   id: string;
   conversationId: string;
@@ -131,7 +138,9 @@ export interface Message {
   audioUrl?: string | null;
   videoNoteUrl?: string | null;
   mediaDurationMs?: number | null;
+  editedAt?: string | null;
   deletedAt?: string | null;
+  replyTo?: MessageReplySnippet | null;
   reactions?: MessageReaction[];
   readAt: string | null;
   createdAt: string;
@@ -169,6 +178,27 @@ export interface CommunityMessage {
   sender: UserSummary;
   content: string;
   createdAt: string;
+}
+
+export interface Story {
+  id: string;
+  mediaUrl: string;
+  mediaType: 'IMAGE' | 'VIDEO';
+  caption: string | null;
+  createdAt: string;
+  expiresAt: string;
+  viewed: boolean;
+  viewCount: number;
+}
+
+export interface StoryGroup {
+  author: UserSummary;
+  stories: Story[];
+  allViewed: boolean;
+}
+
+export interface StoryViewerEntry extends UserSummary {
+  viewedAt: string;
 }
 
 export interface Trend {

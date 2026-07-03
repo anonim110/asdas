@@ -36,12 +36,21 @@ The project runs out-of-the-box on **SQLite** (zero install) and can switch to
 - Clickable hashtags with dedicated hashtag pages
 - Trending hashtags (last 7 days)
 
+**Stories**
+- 24-hour photo/video stories with a story ring bar on the Home feed
+- Full-screen viewer: segmented progress bars, auto-advance, hold-to-pause,
+  tap / arrow-key navigation
+- Unseen/seen rings, view receipts with a per-story viewers list (author only),
+  delete your own stories
+
 **Notifications** (realtime)
 - Likes, reposts, quotes, replies, follows, @mentions
 - Unread badge pushed over WebSocket
 
 **Direct messages** (realtime)
 - 1:1 conversations, typing indicators, read receipts
+- Reply to messages (quoted snippet, click to jump back) and edit sent
+  messages with an "edited" label
 
 **Extras**
 - Light / dark theme (persisted) with smooth transitions

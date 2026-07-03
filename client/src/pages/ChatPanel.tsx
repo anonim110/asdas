@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Send, ImagePlus, Smile, X, Phone, Video, Search, Gamepad2, Mic, CircleDot, Trash2 } from 'lucide-react';
+import { ArrowLeft, Send, ImagePlus, Smile, X, Phone, Video, Search, Gamepad2, Mic, CircleDot, Trash2, Reply, Pencil } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { useAuth } from '../store/auth';
@@ -53,6 +53,10 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
   const [recording, setRecording] = useState<null | 'audio' | 'video'>(null);
   const [recElapsed, setRecElapsed] = useState(0);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [editing, setEditing] = useState<Message | null>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -126,6 +130,8 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
         if (!active) return;
         setMessages([...data.items].reverse());
         setNextCursor(data.nextCursor);
+        setReplyTo(null);
+        setEditing(null);
         clearUnreadForActiveConversation();
         setTimeout(() => bottomRef.current?.scrollIntoView(), 50);
       });
@@ -202,6 +208,48 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
     }
   }
 
+  function startReply(m: Message) {
+    setMenuFor(null);
+    setEditing(null);
+    setReplyTo(m);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }
+
+  function startEdit(m: Message) {
+    setMenuFor(null);
+    setReplyTo(null);
+    setEditing(m);
+    setText(m.content ?? '');
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }
+
+  function cancelComposerMode() {
+    if (editing) setText('');
+    setEditing(null);
+    setReplyTo(null);
+  }
+
+  // Scroll to (and briefly highlight) the message a reply points at.
+  function jumpToMessage(messageId: string) {
+    const el = messageRefs.current[messageId];
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightId(messageId);
+    setTimeout(() => setHighlightId((cur) => (cur === messageId ? null : cur)), 1600);
+  }
+
+  // One-line summary of a message shown in reply previews.
+  function replySnippet(m: Pick<Message, 'content' | 'imageUrl' | 'audioUrl' | 'videoNoteUrl' | 'deletedAt'>) {
+    if (m.deletedAt) return 'Deleted message';
+    if (m.audioUrl) return '🎤 Voice message';
+    if (m.videoNoteUrl) return '⭕ Video message';
+    const invite = parseGameInvite(m.content);
+    if (invite) return `🎮 ${invite.game}`;
+    if (m.content) return m.content;
+    if (m.imageUrl) return '📷 Photo';
+    return 'Message';
+  }
+
   async function loadOlder() {
     if (!nextCursor) return;
     const { data } = await api.get<{ items: Message[]; nextCursor: string | null }>(
@@ -212,7 +260,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
     setNextCursor(data.nextCursor);
   }
 
-  async function deliver(content: string, img: typeof image): Promise<boolean> {
+  async function deliver(content: string, img: typeof image, replyToId?: string): Promise<boolean> {
     if ((!content && !img) || isSending) return false;
     setError('');
     setIsSending(true);
@@ -221,12 +269,16 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
       if (img) {
         const form = new FormData();
         if (content) form.append('content', content);
+        if (replyToId) form.append('replyToId', replyToId);
         form.append('image', img.file);
         ({ data } = await api.post<{ message: Message }>(`/conversations/${conversation.id}/messages`, form, {
           headers: { 'Content-Type': 'multipart/form-data' },
         }));
       } else {
-        ({ data } = await api.post<{ message: Message }>(`/conversations/${conversation.id}/messages`, { content }));
+        ({ data } = await api.post<{ message: Message }>(`/conversations/${conversation.id}/messages`, {
+          content,
+          ...(replyToId ? { replyToId } : {}),
+        }));
       }
       appendMessage(data.message);
       refreshConversationPreview(data.message);
@@ -354,15 +406,37 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
   async function send(e: React.FormEvent) {
     e.preventDefault();
     const content = text.trim();
+
+    // Editing mode: PATCH the existing message instead of sending a new one.
+    if (editing) {
+      if (!content || isSending) return;
+      setError('');
+      setIsSending(true);
+      try {
+        await api.patch(`/conversations/${conversation.id}/messages/${editing.id}`, { content });
+        setText('');
+        setEditing(null);
+        setEmojiOpen(false);
+      } catch (err) {
+        setError(errorMessage(err, 'Could not edit message'));
+      } finally {
+        setIsSending(false);
+      }
+      return;
+    }
+
     const img = image;
+    const reply = replyTo;
     if ((!content && !img) || isSending) return;
     setText('');
     setImage(null);
+    setReplyTo(null);
     setEmojiOpen(false);
-    const sent = await deliver(content, img);
+    const sent = await deliver(content, img, reply?.id);
     if (!sent) {
       setText(content);
       setImage(img);
+      setReplyTo(reply);
     }
   }
 
@@ -488,7 +562,13 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
           // Round video "circles" render bare (no chat bubble).
           if (m.videoNoteUrl) {
             return (
-              <div key={m.id} className={`mb-3 flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
+              <div
+                key={m.id}
+                ref={(el) => {
+                  messageRefs.current[m.id] = el;
+                }}
+                className={`mb-3 flex flex-col ${mine ? 'items-end' : 'items-start'}`}
+              >
                 <VideoCircle url={m.videoNoteUrl} />
                 <p className="mt-1 px-2 text-[11px] text-slate-500 dark:text-slate-400">
                   {relativeTime(m.createdAt)}
@@ -499,8 +579,17 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
           }
 
           const deleted = !!m.deletedAt;
+          const editable = mine && !deleted && !m.audioUrl && !m.videoNoteUrl && !!m.content && !invite;
           return (
-            <div key={m.id} className={`group mb-2 flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
+            <div
+              key={m.id}
+              ref={(el) => {
+                messageRefs.current[m.id] = el;
+              }}
+              className={`group mb-2 flex flex-col rounded-2xl transition-colors duration-500 ${
+                highlightId === m.id ? 'bg-brand/10' : ''
+              } ${mine ? 'items-end' : 'items-start'}`}
+            >
               <div className={`flex max-w-[88%] items-center gap-1 sm:max-w-[80%] ${mine ? 'flex-row-reverse' : 'flex-row'}`}>
                 <div
                   className={`overflow-hidden rounded-3xl px-1 py-1 shadow-sm ${
@@ -515,6 +604,30 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
                     <p className="px-3 py-1 text-sm italic">Message deleted</p>
                   ) : (
                     <>
+                      {m.replyTo && (
+                        <button
+                          type="button"
+                          onClick={() => jumpToMessage(m.replyTo!.id)}
+                          className={`mx-1 mt-0.5 block w-[calc(100%-0.5rem)] rounded-xl border-l-4 px-2 py-1 text-left text-xs ${
+                            mine
+                              ? 'border-white/60 bg-white/15 text-white/90'
+                              : 'border-brand bg-brand/10 text-slate-600 dark:text-slate-300'
+                          }`}
+                        >
+                          <span className="block font-bold">
+                            {m.replyTo.senderId === me?.id ? 'You' : conversation.other.displayName}
+                          </span>
+                          <span className="block truncate">
+                            {m.replyTo.kind === 'deleted'
+                              ? 'Deleted message'
+                              : m.replyTo.kind === 'voice'
+                                ? '🎤 Voice message'
+                                : m.replyTo.kind === 'video'
+                                  ? '⭕ Video message'
+                                  : m.replyTo.content || '📷 Photo'}
+                          </span>
+                        </button>
+                      )}
                       {m.imageUrl && (
                         <img
                           src={m.imageUrl}
@@ -541,6 +654,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
                   )}
                   <p className={`px-3 pb-1 text-[11px] ${mine && !deleted ? 'text-white/75' : 'text-slate-500 dark:text-slate-400'}`}>
                     {relativeTime(m.createdAt)}
+                    {m.editedAt && !deleted ? ' - edited' : ''}
                     {mine && m.readAt && !deleted ? ' - Read' : ''}
                   </p>
                 </div>
@@ -574,6 +688,26 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
                               {emoji}
                             </button>
                           ))}
+                          <button
+                            type="button"
+                            onClick={() => startReply(m)}
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-black/5 dark:text-slate-300 dark:hover:bg-white/10"
+                            aria-label="Reply"
+                            title="Reply"
+                          >
+                            <Reply size={16} />
+                          </button>
+                          {editable && (
+                            <button
+                              type="button"
+                              onClick={() => startEdit(m)}
+                              className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-black/5 dark:text-slate-300 dark:hover:bg-white/10"
+                              aria-label="Edit message"
+                              title="Edit"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                          )}
                           {mine && (
                             <button
                               type="button"
@@ -633,6 +767,25 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
               Open settings
             </button>
           )}
+        </div>
+      )}
+
+      {(replyTo || editing) && (
+        <div className="flex items-center gap-3 border-t border-slate-200/80 px-3 pt-2 dark:border-white/10">
+          <span className="shrink-0 text-brand">{editing ? <Pencil size={18} /> : <Reply size={18} />}</span>
+          <div className="min-w-0 flex-1 border-l-4 border-brand/60 pl-2">
+            <p className="text-xs font-bold text-brand">
+              {editing
+                ? 'Edit message'
+                : `Replying to ${replyTo!.senderId === me?.id ? 'yourself' : conversation.other.displayName}`}
+            </p>
+            <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+              {replySnippet(editing ?? replyTo!)}
+            </p>
+          </div>
+          <button type="button" onClick={cancelComposerMode} className="icon-button min-h-9 min-w-9 shrink-0" aria-label="Cancel">
+            <X size={16} />
+          </button>
         </div>
       )}
 
@@ -711,6 +864,9 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 send(e);
+              } else if (e.key === 'Escape' && (replyTo || editing)) {
+                e.preventDefault();
+                cancelComposerMode();
               }
             }}
             rows={1}
