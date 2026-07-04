@@ -125,7 +125,7 @@ export function Profile() {
                   {menu && <Dismiss onDismiss={() => setMenu(false)} />}
                   {menu && (
                     <div className="panel absolute right-0 z-10 mt-1 w-48 overflow-hidden py-1">
-                      <button onClick={muteToggle} className="block w-full px-4 py-3 text-left font-medium transition hover:bg-rose-50 dark:hover:bg-white/[0.07]">
+                      <button onClick={muteToggle} className="block w-full px-4 py-3 text-left font-medium transition hover:bg-violet-50 dark:hover:bg-white/[0.07]">
                         {rel.isMuted ? 'Unmute' : 'Mute'} @{username}
                       </button>
                       <button onClick={blockToggle} className="block w-full px-4 py-3 text-left font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10">
@@ -149,7 +149,7 @@ export function Profile() {
           <UserName user={profile} className="max-w-full text-xl" />
           <p className="font-medium text-slate-500 dark:text-slate-400">@{profile.username}</p>
           {rel.isFollowedBy && !rel.isSelf && (
-            <span className="mt-1 inline-block rounded-full bg-rose-50 px-2 py-1 text-xs font-bold text-brand dark:bg-white/[0.06] dark:text-rose-300">
+            <span className="mt-1 inline-block rounded-full bg-violet-50 px-2 py-1 text-xs font-bold text-brand dark:bg-white/[0.06] dark:text-violet-300">
               Follows you
             </span>
           )}
@@ -200,7 +200,7 @@ export function Profile() {
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className="relative flex-1 py-4 text-center font-bold capitalize transition duration-200 hover:bg-rose-50 dark:hover:bg-white/[0.05]"
+                className="relative flex-1 py-4 text-center font-bold capitalize transition duration-200 hover:bg-violet-50 dark:hover:bg-white/[0.05]"
               >
                 <span className={tab === t ? 'text-slate-950 dark:text-white' : 'text-slate-500 dark:text-slate-400'}>{t}</span>
                 {tab === t && <span className="absolute bottom-0 left-1/2 h-1 w-14 -translate-x-1/2 rounded-full bg-brand" />}

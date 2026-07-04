@@ -140,7 +140,7 @@ function StoryRing({
 }) {
   const ring =
     state === 'unseen'
-      ? 'bg-[conic-gradient(from_210deg,#f59e0b,#f43f5e,#d946ef,#f59e0b)]'
+      ? 'bg-[conic-gradient(from_210deg,#22d3ee,#8b5cf6,#d946ef,#22d3ee)]'
       : state === 'seen'
         ? 'bg-slate-300 dark:bg-white/20'
         : 'bg-transparent';
@@ -153,7 +153,7 @@ function StoryRing({
     >
       <div className="relative transition duration-200 group-hover:scale-105">
         <div className={`rounded-full p-[2.5px] ${ring}`}>
-          <div className="rounded-full bg-white p-[2px] dark:bg-[#07080f]">
+          <div className="rounded-full bg-white p-[2px] dark:bg-[#0a0714]">
             <Avatar user={author} size="lg" linkable={false} />
           </div>
         </div>
@@ -166,7 +166,7 @@ function StoryRing({
               e.stopPropagation();
               onBadgeClick();
             }}
-            className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-brand text-white shadow-sm dark:border-[#07080f]"
+            className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-brand text-white shadow-sm dark:border-[#0a0714]"
             aria-label="Add story"
           >
             {badge}

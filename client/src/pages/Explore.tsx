@@ -45,7 +45,7 @@ export function Explore() {
             <Link
               key={t.tag}
               to={`/hashtag/${t.tag}`}
-              className="block px-4 py-3 transition duration-200 hover:bg-rose-50 dark:hover:bg-white/[0.04]"
+              className="block px-4 py-3 transition duration-200 hover:bg-violet-50 dark:hover:bg-white/[0.04]"
             >
               <p className="font-bold">#{t.tag}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400">{compactNumber(t.count)} posts</p>

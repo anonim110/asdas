@@ -24,8 +24,8 @@
   /* ── Liquid-glass design tokens (dark) ── */
   --glass-blur: 18px;
   --glass-saturate: 150%;
-  --glass-bg: rgba(22, 24, 38, 0.55);
-  --glass-bg-strong: rgba(22, 24, 38, 0.72);
+  --glass-bg: rgba(26, 20, 44, 0.55);
+  --glass-bg-strong: rgba(26, 20, 44, 0.72);
   --glass-border: rgba(255, 255, 255, 0.1);
   --glass-hairline: rgba(255, 255, 255, 0.08);
   --glass-sheen: rgba(255, 255, 255, 0.14);
@@ -43,8 +43,8 @@
 .standalone.dark {
   --glass-blur: 30px;
   --glass-saturate: 175%;
-  --glass-bg: rgba(22, 24, 38, 0.42);
-  --glass-bg-strong: rgba(22, 24, 38, 0.6);
+  --glass-bg: rgba(26, 20, 44, 0.42);
+  --glass-bg-strong: rgba(26, 20, 44, 0.6);
 }
 
 html,
@@ -55,15 +55,15 @@ body,
 }
 
 body {
-  @apply bg-slate-100 text-slate-950 dark:bg-[#05060c] dark:text-slate-100;
+  @apply bg-[#f3f1fb] text-slate-950 dark:bg-[#070512] dark:text-slate-100;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Ambient, softly-coloured backdrop so the frosted surfaces have light to
-   refract — this is what sells the "liquid glass" depth. Fixed + non-blocking. */
+/* Ambient "aurora" backdrop: violet / cyan / fuchsia light for the frosted
+   surfaces to refract. Fixed + non-blocking. */
 body::before {
   content: '';
   position: fixed;
@@ -71,16 +71,16 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(42% 38% at 12% -5%, rgba(251, 113, 133, 0.28), transparent 60%),
-    radial-gradient(38% 34% at 100% 8%, rgba(37, 99, 235, 0.2), transparent 60%),
-    radial-gradient(46% 40% at 50% 112%, rgba(225, 29, 72, 0.16), transparent 62%);
-  filter: saturate(115%);
+    radial-gradient(42% 38% at 12% -5%, rgba(139, 92, 246, 0.26), transparent 60%),
+    radial-gradient(38% 34% at 100% 8%, rgba(34, 211, 238, 0.18), transparent 60%),
+    radial-gradient(46% 40% at 50% 112%, rgba(217, 70, 239, 0.15), transparent 62%);
+  filter: saturate(118%);
 }
 .dark body::before {
   background:
-    radial-gradient(44% 40% at 10% -6%, rgba(244, 63, 94, 0.22), transparent 60%),
-    radial-gradient(40% 36% at 102% 6%, rgba(56, 89, 220, 0.22), transparent 60%),
-    radial-gradient(48% 42% at 52% 114%, rgba(124, 58, 237, 0.18), transparent 62%);
+    radial-gradient(44% 40% at 10% -6%, rgba(124, 58, 237, 0.3), transparent 60%),
+    radial-gradient(40% 36% at 102% 6%, rgba(6, 182, 212, 0.2), transparent 60%),
+    radial-gradient(48% 42% at 52% 114%, rgba(217, 70, 239, 0.18), transparent 62%);
 }
 
 ::selection {
@@ -121,7 +121,7 @@ button {
   textarea:focus-visible,
   select:focus-visible,
   [tabindex]:focus-visible {
-    @apply outline-none ring-2 ring-brand/70 ring-offset-2 ring-offset-rose-50 dark:ring-offset-[#07080f];
+    @apply outline-none ring-2 ring-brand/70 ring-offset-2 ring-offset-violet-50 dark:ring-offset-[#0a0714];
   }
 }
 
@@ -152,8 +152,8 @@ button {
   }
 
   .btn-primary {
-    @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full bg-brand px-5 py-2.5 font-bold text-white shadow-lift transition-all duration-200 hover:bg-brand-hover hover:shadow-lg hover:shadow-brand/30 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:active:scale-100;
-    background-image: linear-gradient(135deg, #f43f5e 0%, #e11d48 55%, #be123c 100%);
+    @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full bg-brand px-5 py-2.5 font-bold text-white shadow-lift transition-all duration-200 hover:bg-brand-hover hover:shadow-lg hover:shadow-brand/40 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:active:scale-100;
+    background-image: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%);
   }
   .btn-outline {
     @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full px-5 py-2.5 font-bold text-slate-800 transition-all duration-200 hover:border-brand/30 hover:text-brand active:scale-[0.97] dark:text-slate-100;
@@ -167,8 +167,12 @@ button {
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
   }
+  /* Aurora feed surface: content floats as separated rounded cards over the
+     ambient background instead of a single bordered column. */
   .card {
-    @apply border-b border-slate-200/70 bg-transparent dark:border-white/[0.08];
+    @apply mx-2 mb-3 rounded-3xl border border-white/70 bg-white/75 shadow-soft sm:mx-0 dark:border-white/[0.08] dark:bg-white/[0.045];
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   }
   .panel {
     border-radius: var(--radius-glass);
@@ -179,7 +183,7 @@ button {
     box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-sheen);
   }
   .icon-button {
-    @apply inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-full text-slate-500 transition duration-200 hover:bg-white/70 hover:text-brand hover:shadow-sm active:scale-90 dark:text-slate-400 dark:hover:bg-white/[0.1] dark:hover:text-rose-300;
+    @apply inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-full text-slate-500 transition duration-200 hover:bg-white/70 hover:text-brand hover:shadow-sm active:scale-90 dark:text-slate-400 dark:hover:bg-white/[0.1] dark:hover:text-violet-300;
   }
   .search-field {
     @apply flex min-h-12 items-center gap-2 rounded-2xl px-4 py-2.5 transition duration-200 focus-within:border-brand/40 focus-within:ring-4 focus-within:ring-brand/10;
@@ -189,13 +193,14 @@ button {
     border: 1px solid var(--glass-border);
   }
   .post-card {
-    @apply relative transition duration-200 hover:z-[1] hover:bg-white/55 hover:shadow-[0_14px_34px_-28px_rgba(15,23,42,0.9)] active:bg-white/70 dark:hover:bg-white/[0.05] dark:active:bg-white/[0.07];
+    @apply relative transition duration-200 hover:z-[1] hover:-translate-y-0.5 hover:bg-white/85 hover:shadow-[0_20px_45px_-28px_rgba(76,29,149,0.55)] active:translate-y-0 active:bg-white/90 dark:hover:bg-white/[0.07] dark:active:bg-white/[0.09];
   }
   .mobile-safe-pad {
     padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
   }
   .mobile-content-pad {
-    padding-bottom: calc(env(safe-area-inset-bottom) + 5rem);
+    /* Clears the floating bottom dock (plus its offset) on mobile. */
+    padding-bottom: calc(env(safe-area-inset-bottom) + 6.5rem);
   }
   .safe-top {
     padding-top: env(safe-area-inset-top);

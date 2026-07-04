@@ -22,7 +22,7 @@ export function Toaster() {
         return (
           <div
             key={t.id}
-            className="pointer-events-auto flex w-full max-w-sm animate-toast-in items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/95 px-4 py-3 shadow-soft backdrop-blur-xl dark:border-white/10 dark:bg-[#090a12]/95"
+            className="pointer-events-auto flex w-full max-w-sm animate-toast-in items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/95 px-4 py-3 shadow-soft backdrop-blur-xl dark:border-white/10 dark:bg-[#0d0a18]/95"
           >
             <Icon size={20} className={ring} />
             <p className="flex-1 text-sm font-medium">{t.message}</p>

@@ -86,7 +86,7 @@ export function QuickSearch({ open, onClose }: Props) {
             <button
               key={item.to}
               onClick={() => go(item.to)}
-              className="flex min-h-14 items-center gap-3 rounded-lg border border-slate-200/80 bg-slate-50/70 px-3 text-left font-bold transition duration-200 hover:border-brand/25 hover:bg-rose-50 active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.035] dark:hover:bg-white/[0.07]"
+              className="flex min-h-14 items-center gap-3 rounded-lg border border-slate-200/80 bg-slate-50/70 px-3 text-left font-bold transition duration-200 hover:border-brand/25 hover:bg-violet-50 active:scale-[0.98] dark:border-white/10 dark:bg-white/[0.035] dark:hover:bg-white/[0.07]"
             >
               <item.icon size={19} className="text-brand" />
               {item.label}
@@ -101,7 +101,7 @@ export function QuickSearch({ open, onClose }: Props) {
             <button
               key={user.id}
               onClick={() => go(`/${user.username}`)}
-              className="flex min-h-16 w-full items-center gap-3 rounded-lg px-2 text-left transition duration-200 hover:bg-rose-50 active:scale-[0.99] dark:hover:bg-white/[0.06]"
+              className="flex min-h-16 w-full items-center gap-3 rounded-lg px-2 text-left transition duration-200 hover:bg-violet-50 active:scale-[0.99] dark:hover:bg-white/[0.06]"
             >
               <Avatar user={user} linkable={false} />
               <span className="min-w-0 flex-1">

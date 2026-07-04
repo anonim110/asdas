@@ -243,7 +243,7 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
                         setEditText(content ?? '');
                         setEditOpen(true);
                       }}
-                      className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-rose-50 dark:hover:bg-white/[0.07]"
+                      className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-violet-50 dark:hover:bg-white/[0.07]"
                     >
                       <Pencil size={16} /> Edit
                     </button>
@@ -256,14 +256,14 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
                   </button>
                   <button
                     onClick={pin}
-                    className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-rose-50 dark:hover:bg-white/[0.07]"
+                    className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-violet-50 dark:hover:bg-white/[0.07]"
                   >
                     <Pin size={16} /> Pin to profile
                   </button>
                   {!isRepost && (
                     <button
                       onClick={openAnalytics}
-                      className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-rose-50 dark:hover:bg-white/[0.07]"
+                      className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-violet-50 dark:hover:bg-white/[0.07]"
                     >
                       <BarChart2 size={16} /> View analytics
                     </button>
@@ -319,7 +319,7 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
                 <div className="panel absolute z-10 mt-1 w-44 overflow-hidden py-1" onClick={(e) => e.stopPropagation()}>
                   <button
                     onClick={toggleRepost}
-                    className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-rose-50 dark:hover:bg-white/[0.07]"
+                    className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-violet-50 dark:hover:bg-white/[0.07]"
                   >
                     <Repeat2 size={16} /> {viewer.reposted ? 'Undo repost' : 'Repost'}
                   </button>
@@ -328,7 +328,7 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
                       setRepostMenu(false);
                       setQuoteOpen(true);
                     }}
-                    className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-rose-50 dark:hover:bg-white/[0.07]"
+                    className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-violet-50 dark:hover:bg-white/[0.07]"
                   >
                     <QuoteIcon size={16} /> Quote
                   </button>
@@ -398,7 +398,7 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
                       navigator.clipboard?.writeText(`${window.location.origin}/post/${display.id}`);
                       toast('Link copied to clipboard', 'success');
                     }}
-                    className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-rose-50 dark:hover:bg-white/[0.07]"
+                    className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-violet-50 dark:hover:bg-white/[0.07]"
                   >
                     <Share size={16} /> Copy link
                   </button>
@@ -407,7 +407,7 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
                       setShareMenu(false);
                       setSendOpen(true);
                     }}
-                    className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-rose-50 dark:hover:bg-white/[0.07]"
+                    className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-violet-50 dark:hover:bg-white/[0.07]"
                   >
                     <MessageCircle size={16} /> Send via message
                   </button>
@@ -538,7 +538,7 @@ function SendPostModal({ post, content, onClose }: { post: Post; content: string
                 type="button"
                 disabled={!!sendingTo}
                 onClick={() => send(c)}
-                className="flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition hover:bg-rose-50 disabled:opacity-60 dark:hover:bg-white/[0.06]"
+                className="flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition hover:bg-violet-50 disabled:opacity-60 dark:hover:bg-white/[0.06]"
               >
                 <Avatar user={c.other} linkable={false} />
                 <div className="min-w-0 flex-1">
@@ -563,7 +563,7 @@ function QuoteEmbed({ post }: { post: Post }) {
         e.stopPropagation();
         navigate(`/post/${post.id}`);
       }}
-      className="mt-3 cursor-pointer rounded-2xl border border-slate-200 bg-white/70 p-3 transition duration-200 hover:border-brand/30 hover:bg-rose-50/70 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]"
+      className="mt-3 cursor-pointer rounded-2xl border border-slate-200 bg-white/70 p-3 transition duration-200 hover:border-brand/30 hover:bg-violet-50/70 dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]"
     >
       <div className="flex min-w-0 items-center gap-2 text-sm">
         <Avatar user={post.author} size="sm" />

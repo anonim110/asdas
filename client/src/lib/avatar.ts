@@ -2,7 +2,7 @@ const themes = [
   {
     avatar: 'from-rose-500 to-orange-400',
     banner:
-      'from-rose-100 via-orange-50 to-sky-100 dark:from-rose-500/20 dark:via-orange-400/10 dark:to-sky-500/15',
+      'from-violet-100 via-orange-50 to-sky-100 dark:from-rose-500/20 dark:via-orange-400/10 dark:to-sky-500/15',
   },
   {
     avatar: 'from-blue-600 to-cyan-400',
@@ -17,7 +17,7 @@ const themes = [
   {
     avatar: 'from-violet-600 to-fuchsia-400',
     banner:
-      'from-violet-100 via-fuchsia-50 to-rose-100 dark:from-violet-500/20 dark:via-fuchsia-400/10 dark:to-rose-500/15',
+      'from-violet-100 via-fuchsia-50 to-violet-100 dark:from-violet-500/20 dark:via-fuchsia-400/10 dark:to-rose-500/15',
   },
   {
     avatar: 'from-amber-500 to-red-500',

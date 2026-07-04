@@ -41,14 +41,14 @@ export function Avatar({ user, size = 'md', linkable = true, showPresence }: Pro
       decoding="async"
       draggable={false}
       onError={() => setImageFailed(true)}
-      className={`${sizes[size]} animate-avatar-reveal rounded-full bg-slate-200 object-cover ring-2 ring-white shadow-sm dark:bg-slate-800 dark:ring-[#07080f]`}
+      className={`${sizes[size]} animate-avatar-reveal rounded-full bg-slate-200 object-cover ring-2 ring-white shadow-sm dark:bg-slate-800 dark:ring-[#0a0714]`}
     />
   ) : (
     <div
       role="img"
       aria-label={`${user.displayName} avatar`}
       title={`@${user.username}`}
-      className={`${sizes[size]} flex select-none items-center justify-center rounded-full bg-gradient-to-br ${theme.avatar} font-black text-white shadow-sm ring-2 ring-white [text-shadow:0_1px_2px_rgb(0_0_0/0.25)] dark:ring-[#07080f]`}
+      className={`${sizes[size]} flex select-none items-center justify-center rounded-full bg-gradient-to-br ${theme.avatar} font-black text-white shadow-sm ring-2 ring-white [text-shadow:0_1px_2px_rgb(0_0_0/0.25)] dark:ring-[#0a0714]`}
     >
       {initial}
     </div>

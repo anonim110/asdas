@@ -55,6 +55,12 @@ The project runs out-of-the-box on **SQLite** (zero install) and can switch to
   messages with an "edited" label
 - Share any post into a conversation as a rich card that deep-links back to it
 
+**Design ("Aurora")**
+- Electric-violet + cyan palette over an ambient aurora backdrop, Manrope
+  typeface (bundled locally, CSP-safe)
+- Feed rendered as floating frosted-glass cards; floating rounded dock
+  navigation on mobile, gradient pill navigation on desktop
+
 **Extras**
 - Light / dark theme (persisted) with smooth transitions
 - Fully responsive (mobile bottom-nav + desktop three-column layout)

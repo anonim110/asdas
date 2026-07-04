@@ -568,7 +568,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
 
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-4">
         {nextCursor && (
-          <button onClick={loadOlder} className="mx-auto mb-4 block rounded-full px-4 py-2 text-sm font-bold text-brand hover:bg-rose-50 dark:hover:bg-white/[0.06]">
+          <button onClick={loadOlder} className="mx-auto mb-4 block rounded-full px-4 py-2 text-sm font-bold text-brand hover:bg-violet-50 dark:hover:bg-white/[0.06]">
             Load older messages
           </button>
         )}
@@ -815,7 +815,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
                         onClick={() => toggleReaction(m.id, r.emoji)}
                         className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ring-1 transition ${
                           mineReact
-                            ? 'bg-brand/15 text-brand ring-brand/30 dark:text-rose-300'
+                            ? 'bg-brand/15 text-brand ring-brand/30 dark:text-violet-300'
                             : 'bg-slate-100 text-slate-600 ring-slate-200 dark:bg-white/10 dark:text-slate-300 dark:ring-white/10'
                         }`}
                       >

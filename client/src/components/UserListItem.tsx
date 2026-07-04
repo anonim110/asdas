@@ -10,7 +10,7 @@ export function UserListItem({ user }: { user: UserSummary }) {
   return (
     <Link
       to={`/${user.username}`}
-      className="flex items-start gap-3 px-4 py-3 transition duration-200 hover:bg-rose-50 dark:hover:bg-white/[0.04]"
+      className="flex items-start gap-3 px-4 py-3 transition duration-200 hover:bg-violet-50 dark:hover:bg-white/[0.04]"
     >
       <Avatar user={user} />
       <div className="min-w-0 flex-1">

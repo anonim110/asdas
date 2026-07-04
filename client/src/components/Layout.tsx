@@ -109,10 +109,10 @@ export function Layout() {
             className="mb-3 flex min-h-12 items-center gap-3 rounded-full p-2.5 text-brand transition duration-200 hover:bg-white/80 hover:shadow-soft active:scale-95 dark:hover:bg-white/[0.06]"
             aria-label="Murmur home"
           >
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand text-white shadow-lift">
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand via-fuchsia-500 to-accent text-white shadow-lift">
               <Feather size={23} />
             </span>
-            <span className="hidden bg-gradient-to-r from-brand via-brand-soft to-accent bg-clip-text text-2xl font-extrabold text-transparent xl:inline">
+            <span className="hidden bg-gradient-to-r from-brand via-fuchsia-400 to-accent bg-clip-text text-2xl font-extrabold text-transparent xl:inline">
               Murmur
             </span>
           </NavLink>
@@ -123,9 +123,9 @@ export function Layout() {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `group flex min-h-12 items-center gap-4 rounded-lg px-3 py-2.5 text-lg transition duration-200 xl:w-full ${
+                  `group flex min-h-12 items-center gap-4 rounded-2xl px-3 py-2.5 text-lg transition duration-200 xl:w-full ${
                     isActive
-                      ? 'bg-white font-extrabold text-brand shadow-sm ring-1 ring-slate-200/70 dark:bg-white/[0.08] dark:text-rose-300 dark:ring-white/10'
+                      ? 'bg-gradient-to-r from-brand/15 via-fuchsia-500/10 to-accent/10 font-extrabold text-brand shadow-sm ring-1 ring-brand/20 dark:text-violet-300 dark:ring-violet-400/25'
                       : 'text-slate-700 hover:bg-white/75 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
                   }`
                 }
@@ -179,7 +179,7 @@ export function Layout() {
                   toast('Signed out', 'info');
                   navigate('/login');
                 }}
-                className="flex w-full items-center gap-2 px-4 py-3 font-bold transition hover:bg-rose-50 dark:hover:bg-white/[0.07]"
+                className="flex w-full items-center gap-2 px-4 py-3 font-bold transition hover:bg-violet-50 dark:hover:bg-white/[0.07]"
               >
                 <LogOut size={18} /> Log out @{user.username}
               </button>
@@ -188,10 +188,12 @@ export function Layout() {
         </div>
       </header>
 
-      {/* Main content — keyed by route for a subtle fade on navigation */}
+      {/* Main content — keyed by route for a subtle fade on navigation.
+          Feed routes are transparent so the floating cards sit right on the
+          aurora backdrop; messages keeps a glass shell for the chat surface. */}
       <main
-        className={`glass mx-auto min-h-dvh min-w-0 w-full sm:rounded-none lg:mx-0 ${
-          isMessagesRoute ? 'max-w-[920px]' : 'max-w-[600px]'
+        className={`mx-auto min-h-dvh min-w-0 w-full lg:mx-0 ${
+          isMessagesRoute ? 'glass max-w-[920px] sm:rounded-none' : 'max-w-[600px]'
         }`}
       >
         <div key={location.pathname} className={`min-w-0 animate-page-enter ${isChatRoute ? '' : 'mobile-content-pad lg:pb-0'}`}>
@@ -201,9 +203,9 @@ export function Layout() {
 
       <RightSidebar />
 
-      {/* Mobile bottom navigation */}
+      {/* Mobile bottom navigation — floating rounded dock */}
       {!isChatRoute && (
-        <nav className="glass-strong mobile-safe-pad fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 px-1 pt-1 lg:hidden">
+        <nav className="glass-strong fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.625rem)] z-40 grid grid-cols-5 rounded-[1.75rem] px-1 py-1 shadow-2xl lg:hidden">
           {items
             .filter((item) => ['/home', '/explore', '/communities', '/messages'].includes(item.to))
             .map((item) => (
@@ -211,8 +213,8 @@ export function Layout() {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] font-bold transition duration-200 ${
-                  isActive ? 'text-brand dark:text-rose-300' : 'text-slate-500'
+                `relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-3xl text-[11px] font-bold transition duration-200 ${
+                  isActive ? 'text-brand dark:text-violet-300' : 'text-slate-500'
                 }`
               }
             >
@@ -220,12 +222,14 @@ export function Layout() {
                 <>
                   <span
                     className={`relative flex h-8 min-w-12 items-center justify-center rounded-full transition duration-200 ${
-                      isActive ? 'bg-rose-100 dark:bg-white/[0.08]' : ''
+                      isActive
+                        ? 'bg-gradient-to-r from-brand/20 to-accent/15 dark:from-brand/30 dark:to-accent/20'
+                        : ''
                     }`}
                   >
                     <item.icon size={22} className={isActive ? 'animate-nav-pop' : ''} />
                     {!!item.badge && item.badge > 0 && (
-                      <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-accent ring-2 ring-white dark:ring-[#07080f]" />
+                      <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-accent ring-2 ring-white dark:ring-[#0a0714]" />
                     )}
                   </span>
                   <span className="max-w-full truncate px-1">
@@ -238,13 +242,13 @@ export function Layout() {
           <button
             type="button"
             onClick={() => setMobileMenu(true)}
-            className="relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] font-bold text-slate-500 transition active:bg-rose-50 dark:active:bg-white/[0.07]"
+            className="relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] font-bold text-slate-500 transition active:bg-violet-50 dark:active:bg-white/[0.07]"
             aria-label="Open account menu"
           >
             <span className="relative flex h-8 min-w-12 items-center justify-center rounded-full">
               <Menu size={22} />
               {(notifUnread > 0) && (
-                <span className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full bg-accent ring-2 ring-white dark:ring-[#07080f]" />
+                <span className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full bg-accent ring-2 ring-white dark:ring-[#0a0714]" />
               )}
             </span>
             <span>More</span>
@@ -256,7 +260,7 @@ export function Layout() {
       {showMobileComposer && (
         <button
           onClick={() => setCompose(true)}
-          className="btn-primary fixed bottom-20 right-4 z-40 h-14 w-14 rounded-full p-0 lg:hidden"
+          className="btn-primary fixed bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] right-4 z-40 h-14 w-14 rounded-full p-0 lg:hidden"
           aria-label="Create post"
         >
           <Feather size={22} />
@@ -283,7 +287,7 @@ export function Layout() {
                 setMobileMenu(false);
                 navigate(item.to);
               }}
-              className="flex min-h-14 items-center gap-3 rounded-2xl px-3 text-left font-bold transition active:bg-rose-50 dark:active:bg-white/[0.07]"
+              className="flex min-h-14 items-center gap-3 rounded-2xl px-3 text-left font-bold transition active:bg-violet-50 dark:active:bg-white/[0.07]"
             >
               <span className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-white/[0.07] dark:text-slate-200">
                 <item.icon size={21} />

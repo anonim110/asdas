@@ -38,7 +38,7 @@ export function EmojiPicker({ onPick, onClose }: Props) {
           key={e}
           type="button"
           onClick={() => onPick(e)}
-          className="min-h-9 rounded-xl p-1 text-xl transition duration-200 hover:scale-110 hover:bg-rose-50 dark:hover:bg-white/[0.07]"
+          className="min-h-9 rounded-xl p-1 text-xl transition duration-200 hover:scale-110 hover:bg-violet-50 dark:hover:bg-white/[0.07]"
         >
           {e}
         </button>

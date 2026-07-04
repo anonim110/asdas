@@ -391,7 +391,7 @@ export function StoryViewer({
 
         {/* Viewers sheet */}
         {viewersOpen && (
-          <div className="absolute inset-x-0 bottom-0 z-30 max-h-[55%] animate-slide-up overflow-y-auto rounded-t-2xl bg-white p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-2xl dark:bg-[#0b0c15]">
+          <div className="absolute inset-x-0 bottom-0 z-30 max-h-[55%] animate-slide-up overflow-y-auto rounded-t-2xl bg-white p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-2xl dark:bg-[#100c1d]">
             <div className="mb-3 flex items-center justify-between">
               <p className="font-bold text-slate-950 dark:text-white">Viewers</p>
               <button onClick={() => setViewersOpen(false)} className="icon-button" aria-label="Close viewers">

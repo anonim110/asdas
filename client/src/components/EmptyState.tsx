@@ -13,7 +13,7 @@ export function EmptyState({ icon: Icon, title, subtitle, children }: Props) {
   return (
     <div className="animate-page-enter flex flex-col items-center justify-center px-6 py-16 text-center">
       {Icon && (
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-lg border border-rose-100 bg-rose-50 text-brand shadow-sm dark:border-white/10 dark:bg-white/[0.06]">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-lg border border-violet-100 bg-violet-50 text-brand shadow-sm dark:border-white/10 dark:bg-white/[0.06]">
           <Icon size={30} strokeWidth={1.75} />
         </div>
       )}

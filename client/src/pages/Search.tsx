@@ -49,7 +49,7 @@ export function Search() {
             <button
               key={t}
               onClick={() => setTab(t)}
-              className="relative flex-1 py-3 text-center font-bold capitalize transition duration-200 hover:bg-rose-50 dark:hover:bg-white/[0.05]"
+              className="relative flex-1 py-3 text-center font-bold capitalize transition duration-200 hover:bg-violet-50 dark:hover:bg-white/[0.05]"
             >
               <span className={tab === t ? 'text-slate-950 dark:text-white' : 'text-slate-500 dark:text-slate-400'}>{t}</span>
               {tab === t && <span className="absolute bottom-0 left-1/2 h-1 w-10 -translate-x-1/2 rounded-full bg-brand" />}

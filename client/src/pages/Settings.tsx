@@ -92,7 +92,7 @@ export function Settings() {
       )}
 
       <form onSubmit={saveProfile} className="card pb-6">
-        <div className="relative h-40 bg-gradient-to-br from-rose-100 via-white to-blue-100 dark:from-white/[0.08] dark:via-white/[0.03] dark:to-blue-500/10">
+        <div className="relative h-40 bg-gradient-to-br from-violet-100 via-white to-blue-100 dark:from-white/[0.08] dark:via-white/[0.03] dark:to-blue-500/10">
           {bannerPreview && <img src={bannerPreview} className="h-full w-full object-cover" />}
           <button
             type="button"
@@ -119,7 +119,7 @@ export function Settings() {
 
         <div className="px-4">
           <div className="relative -mt-12 mb-4 h-24 w-24">
-            <div className="h-24 w-24 overflow-hidden rounded-full border-4 border-white bg-slate-200 dark:border-[#07080f] dark:bg-slate-800">
+            <div className="h-24 w-24 overflow-hidden rounded-full border-4 border-white bg-slate-200 dark:border-[#0a0714] dark:bg-slate-800">
               {avatarPreview && <img src={avatarPreview} className="h-full w-full object-cover" />}
             </div>
             <button

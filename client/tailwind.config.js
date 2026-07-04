@@ -1,25 +1,30 @@
+import defaultTheme from 'tailwindcss/defaultTheme';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: 'class',
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['"Manrope Variable"', ...defaultTheme.fontFamily.sans],
+      },
       colors: {
-        // Murmur's social-first palette: warm engagement + blue utility accent.
+        // "Aurora" palette: electric violet brand + cyan utility accent.
         brand: {
-          DEFAULT: '#E11D48',
-          hover: '#BE123C',
-          soft: '#FB7185',
+          DEFAULT: '#7C3AED',
+          hover: '#6D28D9',
+          soft: '#A78BFA',
         },
         accent: {
-          DEFAULT: '#2563EB',
-          hover: '#1D4ED8',
-          soft: '#93C5FD',
+          DEFAULT: '#06B6D4',
+          hover: '#0891B2',
+          soft: '#67E8F9',
         },
       },
       boxShadow: {
-        soft: '0 18px 50px -28px rgba(15, 23, 42, 0.35)',
-        lift: '0 18px 35px -24px rgba(225, 29, 72, 0.45)',
+        soft: '0 18px 50px -28px rgba(30, 20, 60, 0.35)',
+        lift: '0 18px 35px -24px rgba(124, 58, 237, 0.55)',
       },
       keyframes: {
         'fade-in': {

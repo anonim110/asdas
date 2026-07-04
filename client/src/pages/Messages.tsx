@@ -58,8 +58,8 @@ export function Messages() {
             <Link
               key={c.id}
               to={`/messages/${c.id}`}
-              className={`flex gap-3 px-4 py-3 transition duration-200 hover:bg-rose-50 dark:hover:bg-white/[0.04] ${
-                c.id === id ? 'bg-rose-50 dark:bg-white/[0.07]' : ''
+              className={`flex gap-3 px-4 py-3 transition duration-200 hover:bg-violet-50 dark:hover:bg-white/[0.04] ${
+                c.id === id ? 'bg-violet-50 dark:bg-white/[0.07]' : ''
               }`}
             >
               <Avatar user={c.other} linkable={false} showPresence />
@@ -80,7 +80,7 @@ export function Messages() {
                         }`
                       : 'No messages yet'}
                   </p>
-                  {c.unread > 0 && <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-accent ring-2 ring-white dark:ring-[#07080f]" />}
+                  {c.unread > 0 && <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-accent ring-2 ring-white dark:ring-[#0a0714]" />}
                 </div>
               </div>
             </Link>

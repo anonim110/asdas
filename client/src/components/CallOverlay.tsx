@@ -201,7 +201,7 @@ export function CallOverlay() {
         {(error && status !== 'ended') || mediaSettingsKind ? (
           <div className="mt-2 flex flex-col items-center gap-2">
             {error && status !== 'ended' && (
-              <p className="text-sm font-semibold text-rose-300">{error}</p>
+              <p className="text-sm font-semibold text-violet-300">{error}</p>
             )}
             {mediaSettingsKind && (
               <button

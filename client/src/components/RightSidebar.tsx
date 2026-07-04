@@ -49,7 +49,7 @@ export function RightSidebar() {
         <div className="panel overflow-hidden">
           <h2 className="px-4 py-3 text-xl font-extrabold">Who to follow</h2>
           {suggestions.map((u) => (
-            <div key={u.id} className="flex items-center gap-3 px-4 py-3 transition duration-200 hover:bg-rose-50 dark:hover:bg-white/[0.06]">
+            <div key={u.id} className="flex items-center gap-3 px-4 py-3 transition duration-200 hover:bg-violet-50 dark:hover:bg-white/[0.06]">
               <Avatar user={u} size="sm" />
               <Link to={`/${u.username}`} className="min-w-0 flex-1">
                 <UserName user={u} className="max-w-full leading-tight" compact />
@@ -72,7 +72,7 @@ export function RightSidebar() {
           <Link
             key={t.tag}
             to={`/hashtag/${t.tag}`}
-            className="block px-4 py-3 transition duration-200 hover:bg-rose-50 dark:hover:bg-white/[0.06]"
+            className="block px-4 py-3 transition duration-200 hover:bg-violet-50 dark:hover:bg-white/[0.06]"
           >
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Trending</p>
             <p className="font-bold">#{t.tag}</p>

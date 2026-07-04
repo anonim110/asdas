@@ -105,7 +105,7 @@ export function MentionAutocomplete({ token, suggestions, setSuggestions, active
           onClick={() => onPick(item)}
           onMouseEnter={() => setActive(i)}
           className={`flex w-full items-center gap-2.5 px-3 py-2 text-left transition ${
-            i === active ? 'bg-rose-50 dark:bg-white/[0.07]' : ''
+            i === active ? 'bg-violet-50 dark:bg-white/[0.07]' : ''
           }`}
         >
           {item.user ? (

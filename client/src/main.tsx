@@ -5,6 +5,7 @@ import App from './App';
 import { Toaster } from './components/Toaster';
 import { primeAudioOnInteraction } from './lib/sound';
 import './lib/enhance'; // PWA install/offline + keyboard shortcuts
+import '@fontsource-variable/manrope'; // Aurora UI typeface (bundled, CSP-safe)
 import './index.css';
 
 primeAudioOnInteraction();

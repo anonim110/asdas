@@ -16,7 +16,7 @@ export function UserName({ user, className = '', compact }: Props) {
       {user.verified && (
         <BadgeCheck
           size={compact ? 15 : 17}
-          className="shrink-0 fill-accent text-white dark:fill-blue-400 dark:text-[#07080f]"
+          className="shrink-0 fill-accent text-white dark:fill-blue-400 dark:text-[#0a0714]"
           aria-label="Verified account"
         />
       )}

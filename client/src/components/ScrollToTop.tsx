@@ -20,7 +20,7 @@ export function ScrollToTop() {
       type="button"
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       aria-label="Scroll to top"
-      className="animate-scale-in fixed bottom-36 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-brand shadow-soft backdrop-blur transition hover:bg-rose-50 active:scale-95 sm:bottom-6 dark:border-white/10 dark:bg-[#07080f]/95 dark:hover:bg-white/[0.07]"
+      className="animate-scale-in fixed bottom-36 right-4 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white/95 text-brand shadow-soft backdrop-blur transition hover:bg-violet-50 active:scale-95 sm:bottom-6 dark:border-white/10 dark:bg-[#0a0714]/95 dark:hover:bg-white/[0.07]"
     >
       <ArrowUp size={20} />
     </button>
