@@ -3,6 +3,7 @@ import { Check, BarChart3 } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { toast } from '../store/toast';
+import { useT } from '../lib/i18n';
 import type { Poll } from '../types';
 
 // How long until a poll closes, as a compact human label.
@@ -10,14 +11,15 @@ function timeLeft(endsAt: string): string | null {
   const ms = new Date(endsAt).getTime() - Date.now();
   if (ms <= 0) return null;
   const h = Math.floor(ms / 3_600_000);
-  if (h >= 48) return `${Math.floor(h / 24)}d left`;
-  if (h >= 1) return `${h}h left`;
-  return `${Math.max(1, Math.floor(ms / 60_000))}m left`;
+  if (h >= 48) return `${Math.floor(h / 24)}d`;
+  if (h >= 1) return `${h}h`;
+  return `${Math.max(1, Math.floor(ms / 60_000))}m`;
 }
 
 // Interactive poll: option buttons before voting, animated result bars after
 // (or once the poll has ended). Live-updates via the post's socket room.
 export function PollView({ postId, poll: initial }: { postId: string; poll: Poll }) {
+  const t = useT();
   const [poll, setPoll] = useState(initial);
   const [busy, setBusy] = useState(false);
   const ended = new Date(poll.endsAt).getTime() <= Date.now();
@@ -79,7 +81,7 @@ export function PollView({ postId, poll: initial }: { postId: string; poll: Poll
             type="button"
             disabled={busy || ended}
             onClick={() => vote(o.id)}
-            title={ended ? undefined : 'Change your vote'}
+            title={ended ? undefined : t('changeVote')}
             className="relative block w-full overflow-hidden rounded-2xl border border-slate-200/80 px-4 py-2.5 text-left text-sm disabled:cursor-default dark:border-white/10"
           >
             <span
@@ -102,7 +104,7 @@ export function PollView({ postId, poll: initial }: { postId: string; poll: Poll
       })}
       <p className="flex items-center gap-1.5 px-1 text-xs font-medium text-slate-500 dark:text-slate-400">
         <BarChart3 size={13} />
-        {poll.totalVotes} {poll.totalVotes === 1 ? 'vote' : 'votes'} · {left ?? 'Final results'}
+        {poll.totalVotes} {poll.totalVotes === 1 ? t('vote') : t('votes')} · {left ? `${left} ${t('left')}` : t('finalResults')}
       </p>
     </div>
   );

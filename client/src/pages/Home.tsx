@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useT } from '../lib/i18n';
 import { api } from '../lib/api';
 import { PageHeader } from '../components/PageHeader';
 import { PostComposer } from '../components/PostComposer';
@@ -9,14 +10,15 @@ import type { Post } from '../types';
 type Tab = 'foryou' | 'following';
 
 export function Home() {
+  const t = useT();
   const [tab, setTab] = useState<Tab>('foryou');
 
   return (
     <div>
-      <PageHeader title="Home">
+      <PageHeader title={t('navHome')}>
         <div className="flex">
-          <TabButton active={tab === 'foryou'} onClick={() => setTab('foryou')} label="For you" />
-          <TabButton active={tab === 'following'} onClick={() => setTab('following')} label="Following" />
+          <TabButton active={tab === 'foryou'} onClick={() => setTab('foryou')} label={t('forYou')} />
+          <TabButton active={tab === 'following'} onClick={() => setTab('following')} label={t('followingTab')} />
         </div>
       </PageHeader>
 
@@ -38,7 +40,7 @@ export function Home() {
             });
             return { items: data.items, next: data.nextPage };
           }}
-          emptyText="No posts yet. Follow people or be the first to post!"
+          emptyText={t('emptyExplore')}
         />
       ) : (
         <Feed
@@ -51,7 +53,7 @@ export function Home() {
             });
             return { items: data.items, next: data.nextCursor };
           }}
-          emptyText="Posts from people you follow will show up here."
+          emptyText={t('emptyHome')}
         />
       )}
     </div>

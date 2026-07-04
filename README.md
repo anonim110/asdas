@@ -72,6 +72,8 @@ The project runs out-of-the-box on **SQLite** (zero install) and can switch to
   `prefers-reduced-motion`
 
 **Extras**
+- Interface translations: English, Русский, Українська, Español — picker in
+  Settings, auto-detected from the browser on first visit
 - Light / dark theme (persisted) with smooth transitions
 - Fully responsive (mobile bottom-nav + desktop three-column layout)
 - Bookmarks

@@ -2,6 +2,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { MessageSquareDashed, AlertTriangle } from 'lucide-react';
 import { useIntersection } from '../hooks/useIntersection';
 import { PostCard } from './PostCard';
+import { useT } from '../lib/i18n';
 import { PostSkeletonList } from './PostSkeleton';
 import { EmptyState } from './EmptyState';
 import { Spinner } from './Spinner';
@@ -25,6 +26,7 @@ interface Props {
 // Generic cursor/page-based infinite feed shared by Home, Explore, Profile,
 // Bookmarks, Hashtag and Search.
 export function Feed({ queryKey, fetchPage, initialPageParam, emptyText = 'Nothing here yet.', emptyIcon, subscribeRealtime }: Props) {
+  const t = useT();
   const query = useInfiniteQuery({
     queryKey,
     queryFn: ({ pageParam }) => fetchPage(pageParam as string | number | undefined),
@@ -72,7 +74,7 @@ export function Feed({ queryKey, fetchPage, initialPageParam, emptyText = 'Nothi
       ))}
       <div ref={sentinelRef} />
       {query.isFetchingNextPage && <Spinner />}
-      {!query.hasNextPage && <p className="py-8 text-center text-sm text-gray-500">You're all caught up.</p>}
+      {!query.hasNextPage && <p className="py-8 text-center text-sm text-gray-500">{t('caughtUp')}</p>}
     </div>
   );
 }

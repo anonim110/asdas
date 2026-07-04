@@ -1,8 +1,10 @@
 import { Moon, Sun } from 'lucide-react';
 import { useTheme } from '../store/theme';
+import { useT } from '../lib/i18n';
 
 export function ThemeToggle({ withLabel }: { withLabel?: boolean }) {
   const { theme, toggle } = useTheme();
+  const t = useT();
   return (
     <button
       onClick={toggle}
@@ -10,7 +12,9 @@ export function ThemeToggle({ withLabel }: { withLabel?: boolean }) {
       title="Toggle theme"
     >
       {theme === 'dark' ? <Sun size={22} /> : <Moon size={22} />}
-      {withLabel && <span className="hidden text-lg xl:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>}
+      {withLabel && (
+        <span className="hidden text-lg xl:inline">{theme === 'dark' ? t('themeLight') : t('themeDark')}</span>
+      )}
     </button>
   );
 }

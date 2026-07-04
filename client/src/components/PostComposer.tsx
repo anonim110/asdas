@@ -3,6 +3,7 @@ import { ImagePlus, X, Smile, ListTodo, Plus } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, errorMessage } from '../lib/api';
 import { useAuth } from '../store/auth';
+import { useT } from '../lib/i18n';
 import { toast } from '../store/toast';
 import { Avatar } from './Avatar';
 import { ProgressRing } from './ProgressRing';
@@ -31,7 +32,7 @@ interface Attachment {
 
 // Shared composer for top-level posts, replies and quotes.
 export function PostComposer({
-  placeholder = "What's happening?",
+  placeholder,
   parentId,
   quotedPostId,
   communityId,
@@ -39,6 +40,7 @@ export function PostComposer({
   compact,
   onPosted,
 }: Props) {
+  const t = useT();
   const user = useAuth((s) => s.user);
   const queryClient = useQueryClient();
   // Top-level composers share a persisted draft so an accidental refresh or
@@ -79,11 +81,11 @@ export function PostComposer({
   }, [text, isDraftable]);
 
   const POLL_DURATIONS: Array<[label: string, hours: number]> = [
-    ['1 hour', 1],
-    ['6 hours', 6],
-    ['1 day', 24],
-    ['3 days', 72],
-    ['7 days', 168],
+    [t('hour1'), 1],
+    [t('hours6'), 6],
+    [t('day1'), 24],
+    [t('days3'), 72],
+    [t('days7'), 168],
   ];
 
   function syncToken(value: string, caret: number) {
@@ -203,7 +205,7 @@ export function PostComposer({
         queryClient.invalidateQueries({ queryKey: ['thread', parentId] });
         queryClient.invalidateQueries({ queryKey: ['post', parentId] });
       }
-      toast(parentId ? 'Reply posted' : quotedPostId ? 'Quote posted' : 'Your post is live', 'success');
+      toast(parentId ? t('replyPosted') : quotedPostId ? t('quotePosted') : t('postLive'), 'success');
       onPosted?.(data.post);
     } catch (err) {
       setError(errorMessage(err, 'Could not publish your post'));
@@ -226,7 +228,7 @@ export function PostComposer({
           onKeyDown={onKeyDown}
           onSelect={(e) => syncToken(text, (e.target as HTMLTextAreaElement).selectionStart ?? 0)}
           onBlur={() => setTimeout(() => setToken(null), 120)}
-          placeholder={placeholder}
+          placeholder={placeholder ?? t('whatsHappening')}
           rows={compact ? 2 : 3}
           className="w-full resize-none bg-transparent text-[17px] leading-7 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
         />
@@ -272,7 +274,7 @@ export function PostComposer({
                     setPollOptions((cur) => cur!.map((o, j) => (j === i ? e.target.value : o)))
                   }
                   maxLength={50}
-                  placeholder={`Choice ${i + 1}${i >= 2 ? ' (optional)' : ''}`}
+                  placeholder={`${t('choice')} ${i + 1}${i >= 2 ? ` ${t('optionalSuffix')}` : ''}`}
                   className="input min-h-10 flex-1 rounded-xl"
                 />
                 {pollOptions.length > 2 && (
@@ -294,13 +296,13 @@ export function PostComposer({
                   onClick={() => setPollOptions((cur) => [...cur!, ''])}
                   className="flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-bold text-brand transition hover:bg-brand/10"
                 >
-                  <Plus size={15} /> Add choice
+                  <Plus size={15} /> {t('addChoice')}
                 </button>
               ) : (
                 <span />
               )}
               <label className="flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400">
-                Poll length
+                {t('pollLength')}
                 <select
                   value={pollHours}
                   onChange={(e) => setPollHours(Number(e.target.value))}
@@ -370,7 +372,7 @@ export function PostComposer({
           <div className="flex items-center gap-3">
             {text.length > 0 && <ProgressRing value={text.length} max={MAX} />}
             <button onClick={submit} disabled={!canSubmit} className="btn-primary min-w-24">
-              {parentId ? 'Reply' : quotedPostId ? 'Quote' : 'Post'}
+              {parentId ? t('reply') : quotedPostId ? t('quote') : t('post')}
             </button>
           </div>
         </div>

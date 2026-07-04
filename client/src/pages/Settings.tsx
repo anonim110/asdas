@@ -5,6 +5,7 @@ import { Bell, Camera, Monitor, Smartphone, ShieldCheck, LogOut, Loader2, Mic, V
 import { api, errorMessage } from '../lib/api';
 import { useAuth } from '../store/auth';
 import { useTheme } from '../store/theme';
+import { LOCALES, useLocale, useT } from '../lib/i18n';
 import { useDevices } from '../store/devices';
 import { soundsMuted, setSoundsMuted } from '../lib/sound';
 import { playMessageSound } from '../lib/sound';
@@ -24,6 +25,9 @@ export function Settings() {
   const setUser = useAuth((s) => s.setUser);
   const logout = useAuth((s) => s.logout);
   const { theme, set: setTheme } = useTheme();
+  const tr = useT();
+  const locale = useLocale((s) => s.locale);
+  const setLocale = useLocale((s) => s.setLocale);
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -210,6 +214,27 @@ export function Settings() {
               }`}
             >
               {t} mode
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Interface language */}
+      <section className="card p-4">
+        <h2 className="mb-1 text-lg font-bold">{tr('language')}</h2>
+        <p className="mb-3 text-sm text-gray-500">{tr('languageDesc')}</p>
+        <div className="flex flex-wrap gap-2">
+          {LOCALES.map((l) => (
+            <button
+              key={l.code}
+              onClick={() => setLocale(l.code)}
+              className={`rounded-full px-4 py-2 text-sm font-bold transition duration-200 ${
+                locale === l.code
+                  ? 'bg-brand text-white shadow-sm'
+                  : 'bg-black/[0.04] text-slate-600 hover:bg-black/[0.07] dark:bg-white/[0.06] dark:text-slate-300 dark:hover:bg-white/[0.1]'
+              }`}
+            >
+              {l.label}
             </button>
           ))}
         </div>

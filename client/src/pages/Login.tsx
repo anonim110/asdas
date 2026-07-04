@@ -4,8 +4,10 @@ import { Feather } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { errorMessage } from '../lib/api';
 import { GoogleAuthButton } from '../components/GoogleAuthButton';
+import { useT } from '../lib/i18n';
 
 export function Login() {
+  const t = useT();
   const login = useAuth((s) => s.login);
   const navigate = useNavigate();
   const location = useLocation();
@@ -50,9 +52,9 @@ export function Login() {
             Murmur
           </span>
         </div>
-        <h1 className="mb-2 text-3xl font-extrabold text-slate-950 dark:text-white">Sign in</h1>
+        <h1 className="mb-2 text-3xl font-extrabold text-slate-950 dark:text-white">{t('signIn')}</h1>
         <p className="mb-6 text-sm leading-6 text-slate-500 dark:text-slate-400">
-          Jump back into your feed, messages, and conversations.
+          {t('signInSubtitle')}
         </p>
         <GoogleAuthButton />
         <div className="my-5 flex items-center gap-3 text-xs font-bold uppercase text-slate-500 dark:text-slate-400">
@@ -63,7 +65,7 @@ export function Login() {
         <form onSubmit={submit} className="space-y-4">
           <input
             className="input"
-            placeholder="Email or username"
+            placeholder={t('emailOrUsername')}
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
             autoComplete="username"
@@ -71,7 +73,7 @@ export function Login() {
           <input
             className="input"
             type="password"
-            placeholder="Password"
+            placeholder={t('password')}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
@@ -82,15 +84,15 @@ export function Login() {
             </p>
           )}
           <button className="btn-primary w-full py-3" disabled={busy}>
-            {busy ? 'Signing in...' : 'Sign in'}
+            {busy ? t('signingIn') : t('signIn')}
           </button>
         </form>
         <div className="mt-4 flex justify-between text-sm">
           <Link to="/forgot-password" className="font-medium text-brand hover:underline">
-            Forgot password?
+            {t('forgotPassword')}
           </Link>
           <Link to="/register" className="font-medium text-brand hover:underline">
-            Create account
+            {t('createAccount')}
           </Link>
         </div>
         <p className="mt-8 text-xs leading-5 text-slate-500 dark:text-slate-400">

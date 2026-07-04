@@ -6,6 +6,7 @@ import { api, errorMessage } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { useAuth } from '../store/auth';
 import { toast as toastGlobal } from '../store/toast';
+import { useT } from '../lib/i18n';
 import { useRealtime } from '../store/realtime';
 import { usePresence } from '../store/presence';
 import { useCall } from '../store/call';
@@ -34,6 +35,7 @@ import type { Conversation, Media, Message } from '../types';
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '🔥', '😮', '😢'];
 
 export function ChatPanel({ conversation }: { conversation: Conversation }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const me = useAuth((s) => s.user);
@@ -264,13 +266,13 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
 
   // One-line summary of a message shown in reply previews.
   function replySnippet(m: Pick<Message, 'content' | 'imageUrl' | 'audioUrl' | 'videoNoteUrl' | 'deletedAt'>) {
-    if (m.deletedAt) return 'Deleted message';
-    if (m.audioUrl) return '🎤 Voice message';
-    if (m.videoNoteUrl) return '⭕ Video message';
+    if (m.deletedAt) return t('messageDeleted');
+    if (m.audioUrl) return `🎤 ${t('voiceMessage')}`;
+    if (m.videoNoteUrl) return `⭕ ${t('videoMessage')}`;
     const invite = parseGameInvite(m.content);
     if (invite) return `🎮 ${invite.game}`;
     if (m.content) return messagePreview(m.content) || m.content;
-    if (m.imageUrl) return '📷 Photo';
+    if (m.imageUrl) return `📷 ${t('photo')}`;
     return 'Message';
   }
 
@@ -511,9 +513,9 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
           </div>
           <p className="truncate text-sm font-medium text-slate-500 dark:text-slate-400">
             {online ? (
-              <span className="text-green-600 dark:text-green-400">Active now</span>
+              <span className="text-green-600 dark:text-green-400">{t('activeNow')}</span>
             ) : lastSeen ? (
-              `Last seen ${relativeTime(lastSeen)} ago`
+              `${t('lastSeen')} ${relativeTime(lastSeen)} ${t('ago')}`
             ) : (
               `@${conversation.other.username}`
             )}
@@ -557,7 +559,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search messages"
+              placeholder={t('searchMessages')}
               className="min-w-0 flex-1 bg-transparent outline-none"
               autoFocus
             />
@@ -581,11 +583,11 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
       >
         {nextCursor && (
           <button onClick={loadOlder} className="mx-auto mb-4 block rounded-full px-4 py-2 text-sm font-bold text-brand hover:bg-violet-50 dark:hover:bg-white/[0.06]">
-            Load older messages
+            {t('loadOlder')}
           </button>
         )}
         {normalizedSearch && visibleMessages.length === 0 && (
-          <p className="py-10 text-center text-sm text-slate-500">No matching messages.</p>
+          <p className="py-10 text-center text-sm text-slate-500">{t('noMatchingMessages')}</p>
         )}
         {visibleMessages.map((m) => {
           const mine = m.senderId === me?.id;
@@ -638,7 +640,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
                   }`}
                 >
                   {deleted ? (
-                    <p className="px-3 py-1 text-sm italic">Message deleted</p>
+                    <p className="px-3 py-1 text-sm italic">{t('messageDeleted')}</p>
                   ) : (
                     <>
                       {m.replyTo && (
@@ -656,12 +658,12 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
                           </span>
                           <span className="block truncate">
                             {m.replyTo.kind === 'deleted'
-                              ? 'Deleted message'
+                              ? t('messageDeleted')
                               : m.replyTo.kind === 'voice'
-                                ? '🎤 Voice message'
+                                ? `🎤 ${t('voiceMessage')}`
                                 : m.replyTo.kind === 'video'
-                                  ? '⭕ Video message'
-                                  : m.replyTo.content || '📷 Photo'}
+                                  ? `⭕ ${t('videoMessage')}`
+                                  : m.replyTo.content || `📷 ${t('photo')}`}
                           </span>
                         </button>
                       )}
@@ -687,7 +689,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
                       ) : storyReply ? (
                         <div className="px-2 py-1.5">
                           <p className={`mb-1.5 text-xs font-semibold ${mine ? 'text-white/75' : 'text-slate-500 dark:text-slate-400'}`}>
-                            {mine ? 'You replied to their story' : 'Replied to your story'}
+                            {mine ? t('youRepliedToStory') : t('repliedToYourStory')}
                           </p>
                           <div className="flex items-end gap-2.5">
                             <button
@@ -717,7 +719,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
                           className={`block w-56 max-w-full px-2 py-1.5 text-left transition active:scale-[0.98]`}
                         >
                           <p className={`mb-1 text-xs font-semibold ${mine ? 'text-white/75' : 'text-slate-500 dark:text-slate-400'}`}>
-                            Shared a post
+                            {t('sharedAPost')}
                           </p>
                           <span
                             className={`block rounded-xl border p-2.5 ${
@@ -863,7 +865,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
         })}
         {typing && (
           <div className="flex animate-message-in items-center gap-2 px-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-            <span>{conversation.other.displayName} is typing</span>
+            <span>{conversation.other.displayName} {t('isTyping')}</span>
             <span className="flex items-end gap-0.5 pb-0.5">
               {[0, 1, 2].map((i) => (
                 <span
@@ -910,8 +912,8 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
           <div className="min-w-0 flex-1 border-l-4 border-brand/60 pl-2">
             <p className="text-xs font-bold text-brand">
               {editing
-                ? 'Edit message'
-                : `Replying to ${replyTo!.senderId === me?.id ? 'yourself' : conversation.other.displayName}`}
+                ? t('editMessage')
+                : `${t('replyingTo')} ${replyTo!.senderId === me?.id ? t('yourself') : conversation.other.displayName}`}
             </p>
             <p className="truncate text-xs text-slate-500 dark:text-slate-400">
               {replySnippet(editing ?? replyTo!)}
@@ -1004,7 +1006,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
               }
             }}
             rows={1}
-            placeholder="Message..."
+            placeholder={t('messagePlaceholder')}
             className="input max-h-32 min-h-11 min-w-0 flex-1 resize-none rounded-2xl px-3 py-2 leading-6"
           />
           <button
@@ -1116,6 +1118,7 @@ function ForwardModal({
   currentConversationId: string;
   onClose: () => void;
 }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [sendingTo, setSendingTo] = useState<string | null>(null);
   const { data: conversations, isLoading } = useQuery({
@@ -1131,7 +1134,7 @@ function ForwardModal({
     try {
       await api.post(`/conversations/${target.id}/messages`, { content: message.content });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
-      toastGlobal(`Forwarded to ${target.other.displayName}`, 'success');
+      toastGlobal(`${t('forwardedTo')} ${target.other.displayName}`, 'success');
       onClose();
     } catch {
       toastGlobal('Could not forward the message', 'error');
@@ -1140,14 +1143,14 @@ function ForwardModal({
   }
 
   return (
-    <Modal open onClose={onClose} title="Forward message">
+    <Modal open onClose={onClose} title={t('forwardMessage')}>
       <p className="mb-2 truncate rounded-2xl bg-slate-100 px-3 py-2 text-sm text-slate-600 dark:bg-white/[0.06] dark:text-slate-300">
-        {messagePreview(message.content) || 'Message'}
+        {messagePreview(message.content) || t('messagePlaceholder')}
       </p>
       {isLoading ? (
         <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">Loading…</p>
       ) : targets.length === 0 ? (
-        <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">No other conversations yet.</p>
+        <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">{t('noOtherConversations')}</p>
       ) : (
         <div className="max-h-80 overflow-y-auto py-1">
           {targets.map((c) => (
@@ -1163,7 +1166,7 @@ function ForwardModal({
                 <p className="truncate font-bold">{c.other.displayName}</p>
                 <p className="truncate text-sm text-slate-500 dark:text-slate-400">@{c.other.username}</p>
               </div>
-              <span className="text-sm font-bold text-brand">{sendingTo === c.id ? 'Sending…' : 'Send'}</span>
+              <span className="text-sm font-bold text-brand">{sendingTo === c.id ? t('sending') : t('send')}</span>
             </button>
           ))}
         </div>

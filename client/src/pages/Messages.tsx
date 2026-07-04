@@ -13,8 +13,10 @@ import { ChatPanel } from './ChatPanel';
 import { UserName } from '../components/UserName';
 import type { Conversation } from '../types';
 import { messagePreview } from '../lib/gameInvite';
+import { useT } from '../lib/i18n';
 
 export function Messages() {
+  const t = useT();
   const { id } = useParams();
   const me = useAuth((s) => s.user);
   const navigate = useNavigate();
@@ -75,7 +77,7 @@ export function Messages() {
           id ? 'hidden md:block' : ''
         }`}
       >
-        <PageHeader title="Messages" />
+        <PageHeader title={t('navMessages')} />
 
         {/* Online now: quick access to friends who are currently active. */}
         {onlineFriends.length > 0 && (
@@ -101,7 +103,7 @@ export function Messages() {
           <Spinner />
         ) : !conversations?.length ? (
           <p className="p-8 text-center text-slate-500 dark:text-slate-400">
-            No conversations yet. Visit a profile to start one.
+            {t('noConversations')}
           </p>
         ) : (
           conversations.map((c) => (
@@ -124,12 +126,12 @@ export function Messages() {
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   {typingFrom[c.other.id] ? (
-                    <p className="truncate text-sm font-semibold italic text-brand dark:text-violet-300">typing...</p>
+                    <p className="truncate text-sm font-semibold italic text-brand dark:text-violet-300">{t('typing')}</p>
                   ) : (
                     <p className="truncate text-sm text-slate-500 dark:text-slate-400">
                       {c.lastMessage
-                        ? `${c.lastMessage.senderId === me?.id ? 'You: ' : ''}${
-                            messagePreview(c.lastMessage.content) || (c.lastMessage.imageUrl ? 'Photo' : '')
+                        ? `${c.lastMessage.senderId === me?.id ? t('youPrefix') : ''}${
+                            messagePreview(c.lastMessage.content) || (c.lastMessage.imageUrl ? t('photo') : '')
                           }`
                         : 'No messages yet'}
                     </p>
@@ -147,7 +149,7 @@ export function Messages() {
           <ChatPanel conversation={active} />
         ) : (
           <div className="flex h-full items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400">
-            {id ? <Spinner /> : 'Select a conversation to start chatting.'}
+            {id ? <Spinner /> : t('selectConversation')}
           </div>
         )}
       </div>

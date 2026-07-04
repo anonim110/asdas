@@ -5,6 +5,7 @@ import { api, errorMessage } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { useAuth } from '../store/auth';
 import { useToast } from '../store/toast';
+import { useT } from '../lib/i18n';
 import { Avatar } from './Avatar';
 import { Modal } from './Modal';
 import { StoryViewer } from './StoryViewer';
@@ -20,6 +21,7 @@ interface PendingStory {
 // tile is always "Your story" (create or view own), followed by people the
 // viewer follows, unseen first.
 export function StoriesBar() {
+  const t = useT();
   const me = useAuth((s) => s.user);
   const queryClient = useQueryClient();
   const toast = useToast((s) => s.show);
@@ -72,9 +74,9 @@ export function StoriesBar() {
       await api.post('/stories', form, { headers: { 'Content-Type': 'multipart/form-data' } });
       closeComposer();
       await queryClient.invalidateQueries({ queryKey: ['stories'] });
-      toast('Story published');
+      toast(t('storyPublished'));
     } catch (err) {
-      toast(errorMessage(err, 'Could not publish story'));
+      toast(errorMessage(err, 'Could not publish story'), 'error');
     } finally {
       setIsPublishing(false);
     }
@@ -112,7 +114,7 @@ export function StoriesBar() {
       <div className="flex items-start gap-3">
         {/* Your story: opens the viewer when you have one, otherwise picks a file. */}
         <StoryRing
-          label="Your story"
+          label={t('yourStory')}
           author={{ ...me }}
           state={myGroup ? (myGroup.allViewed ? 'seen' : 'unseen') : 'none'}
           badge={
@@ -145,7 +147,7 @@ export function StoriesBar() {
       )}
 
       {/* Story composer: preview the picked media and add a caption. */}
-      <Modal open={!!pending} onClose={closeComposer} title="New story">
+      <Modal open={!!pending} onClose={closeComposer} title={t('newStory')}>
         {pending && (
           <div className="space-y-3 pt-1">
             <div className="mx-auto max-h-[52dvh] overflow-hidden rounded-2xl bg-black">
@@ -159,12 +161,12 @@ export function StoriesBar() {
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
               maxLength={200}
-              placeholder="Add a caption..."
+              placeholder={t('addCaption')}
               className="input rounded-2xl"
             />
             <button onClick={publish} disabled={isPublishing} className="btn-primary w-full">
               {isPublishing ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-              {isPublishing ? 'Publishing...' : 'Share to your story'}
+              {isPublishing ? t('publishing') : t('shareStory')}
             </button>
           </div>
         )}

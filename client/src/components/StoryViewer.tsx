@@ -7,6 +7,7 @@ import { getSocket } from '../lib/socket';
 import { encodeStoryReply } from '../lib/messageCards';
 import { useAuth } from '../store/auth';
 import { useToast } from '../store/toast';
+import { useT } from '../lib/i18n';
 import { Avatar } from './Avatar';
 import { relativeTime } from '../lib/format';
 import type { Conversation, StoryGroup, StoryViewerEntry } from '../types';
@@ -27,6 +28,7 @@ export function StoryViewer({
   initialGroup: number;
   onClose: () => void;
 }) {
+  const t = useT();
   const me = useAuth((s) => s.user);
   const queryClient = useQueryClient();
   const toast = useToast((s) => s.show);
@@ -203,7 +205,7 @@ export function StoryViewer({
       });
       setReplyText('');
       setReplyFocused(false);
-      toast('Reply sent', 'success');
+      toast(t('replySent'), 'success');
     } catch (err) {
       toast(errorMessage(err, 'Could not send reply'), 'error');
     } finally {
@@ -215,7 +217,7 @@ export function StoryViewer({
     if (!story || !group) return;
     try {
       await api.delete(`/stories/${story.id}`);
-      toast('Story deleted');
+      toast(t('storyDeleted'));
       // Remove the story from the cache immutably; empty groups drop out and
       // the "group disappeared" effect closes the viewer if needed.
       const removedId = story.id;
@@ -287,7 +289,7 @@ export function StoryViewer({
           <Avatar user={group.author} size="sm" linkable={false} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-white">{group.author.displayName}</p>
-            <p className="text-[11px] font-medium text-white/70">{relativeTime(story.createdAt)} ago</p>
+            <p className="text-[11px] font-medium text-white/70">{relativeTime(story.createdAt)} {t('ago')}</p>
           </div>
           {mine && (
             <button
@@ -340,7 +342,7 @@ export function StoryViewer({
               onClick={openViewers}
               className="flex items-center gap-1.5 text-sm font-semibold text-white/90 transition hover:text-white"
             >
-              <Eye size={16} /> {story.viewCount} {story.viewCount === 1 ? 'view' : 'views'}
+              <Eye size={16} /> {story.viewCount} {story.viewCount === 1 ? t('view') : t('views')}
             </button>
           ) : (
             <div className="space-y-2.5">
@@ -371,7 +373,7 @@ export function StoryViewer({
                   onChange={(e) => setReplyText(e.target.value)}
                   onFocus={() => setReplyFocused(true)}
                   onBlur={() => setTimeout(() => setReplyFocused(false), 150)}
-                  placeholder={`Reply to ${group.author.displayName}...`}
+                  placeholder={`${t('replyToStory')} ${group.author.displayName}...`}
                   className="min-h-11 min-w-0 flex-1 rounded-full border border-white/30 bg-white/10 px-4 text-sm text-white outline-none backdrop-blur transition placeholder:text-white/60 focus:border-white/60 focus:bg-white/15"
                 />
                 {replyText.trim() && (
@@ -393,15 +395,15 @@ export function StoryViewer({
         {viewersOpen && (
           <div className="absolute inset-x-0 bottom-0 z-30 max-h-[55%] animate-slide-up overflow-y-auto rounded-t-2xl bg-white p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-2xl dark:bg-[#100c1d]">
             <div className="mb-3 flex items-center justify-between">
-              <p className="font-bold text-slate-950 dark:text-white">Viewers</p>
+              <p className="font-bold text-slate-950 dark:text-white">{t('viewers')}</p>
               <button onClick={() => setViewersOpen(false)} className="icon-button" aria-label="Close viewers">
                 <X size={18} />
               </button>
             </div>
             {viewers === null ? (
-              <p className="py-4 text-center text-sm text-slate-500">Loading...</p>
+              <p className="py-4 text-center text-sm text-slate-500">{t('loading')}</p>
             ) : viewers.length === 0 ? (
-              <p className="py-4 text-center text-sm text-slate-500">No views yet.</p>
+              <p className="py-4 text-center text-sm text-slate-500">{t('noViewsYet')}</p>
             ) : (
               viewers.map((v) => (
                 <div key={v.id} className="flex items-center gap-3 py-2">

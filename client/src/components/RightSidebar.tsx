@@ -8,8 +8,10 @@ import { Avatar } from './Avatar';
 import { FollowButton } from './FollowButton';
 import { UserName } from './UserName';
 import type { Trend, UserSummary } from '../types';
+import { useT } from '../lib/i18n';
 
 export function RightSidebar() {
+  const t = useT();
   const navigate = useNavigate();
   const [q, setQ] = useState('');
 
@@ -39,7 +41,7 @@ export function RightSidebar() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search"
+            placeholder={t('navSearch')}
             className="w-full bg-transparent outline-none placeholder:text-slate-400"
           />
         </div>
@@ -47,7 +49,7 @@ export function RightSidebar() {
 
       {!!suggestions?.length && (
         <div className="panel overflow-hidden">
-          <h2 className="px-4 py-3 text-xl font-extrabold">Who to follow</h2>
+          <h2 className="px-4 py-3 text-xl font-extrabold">{t('whoToFollow')}</h2>
           {suggestions.map((u) => (
             <div key={u.id} className="flex items-center gap-3 px-4 py-3 transition duration-200 hover:bg-violet-50 dark:hover:bg-white/[0.06]">
               <Avatar user={u} size="sm" />
@@ -62,7 +64,7 @@ export function RightSidebar() {
       )}
 
       <div className="panel overflow-hidden">
-        <h2 className="px-4 py-3 text-xl font-extrabold">Trends for you</h2>
+        <h2 className="px-4 py-3 text-xl font-extrabold">{t('trendsForYou')}</h2>
         {!trends?.length && (
           <p className="px-4 pb-4 text-sm text-slate-500 dark:text-slate-400">
             No trends yet - start posting with #hashtags.

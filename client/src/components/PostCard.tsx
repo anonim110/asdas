@@ -19,6 +19,7 @@ import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { useAuth } from '../store/auth';
 import { toast } from '../store/toast';
+import { t, useLocale } from '../lib/i18n';
 import { relativeTime, compactNumber } from '../lib/format';
 import { encodePostShare } from '../lib/messageCards';
 import { Avatar } from './Avatar';
@@ -41,6 +42,7 @@ interface Props {
 }
 
 export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, index = 0 }: Props) {
+  useLocale((s) => s.locale); // re-render on language change
   const navigate = useNavigate();
   const me = useAuth((s) => s.user);
 
@@ -139,7 +141,7 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
         ? await api.post(`/posts/${display.id}/repost`)
         : await api.delete(`/posts/${display.id}/repost`);
       setCounts(data.counts);
-      toast(next ? 'Reposted' : 'Removed repost', 'success');
+      toast(next ? t('reposted') : t('removedRepost'), 'success');
     } catch {
       setViewer((v) => ({ ...v, reposted: !next }));
       toast('Could not repost', 'error');
@@ -153,7 +155,7 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
     try {
       if (next) await api.post(`/posts/${display.id}/bookmark`);
       else await api.delete(`/posts/${display.id}/bookmark`);
-      toast(next ? 'Added to bookmarks' : 'Removed from bookmarks', 'success');
+      toast(next ? t('bookmarkAdded') : t('bookmarkRemoved'), 'success');
     } catch {
       setViewer((v) => ({ ...v, bookmarked: !next }));
       toast('Could not update bookmark', 'error');
@@ -162,17 +164,17 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
 
   async function remove() {
     setMenuOpen(false);
-    if (!confirm('Delete this post?')) return;
+    if (!confirm(t('deletePostConfirm'))) return;
     await api.delete(`/posts/${display.id}`);
     setDeleted(true);
-    toast('Post deleted', 'success');
+    toast(t('postDeleted'), 'success');
     onDeleted?.(display.id);
   }
 
   async function pin() {
     setMenuOpen(false);
     await api.post(`/posts/${display.id}/pin`);
-    toast('Pinned to your profile', 'success');
+    toast(t('pinnedToast'), 'success');
   }
 
   if (deleted) return null;
@@ -193,7 +195,7 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
       )}
       {post.pinned && (
         <div className="mb-2 flex items-center gap-2 pl-6 text-sm font-medium text-slate-500 dark:text-slate-400">
-          <Pin size={14} /> Pinned
+          <Pin size={14} /> {t('pinned')}
         </div>
       )}
 
@@ -247,27 +249,27 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
                       }}
                       className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-violet-50 dark:hover:bg-white/[0.07]"
                     >
-                      <Pencil size={16} /> Edit
+                      <Pencil size={16} /> {t('edit')}
                     </button>
                   )}
                   <button
                     onClick={remove}
                     className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
                   >
-                    <Trash2 size={16} /> Delete
+                    <Trash2 size={16} /> {t('delete')}
                   </button>
                   <button
                     onClick={pin}
                     className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-violet-50 dark:hover:bg-white/[0.07]"
                   >
-                    <Pin size={16} /> Pin to profile
+                    <Pin size={16} /> {t('pinToProfile')}
                   </button>
                   {!isRepost && (
                     <button
                       onClick={openAnalytics}
                       className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-violet-50 dark:hover:bg-white/[0.07]"
                     >
-                      <BarChart2 size={16} /> View analytics
+                      <BarChart2 size={16} /> {t('viewAnalytics')}
                     </button>
                   )}
                 </div>
@@ -333,7 +335,7 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
                     onClick={toggleRepost}
                     className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-violet-50 dark:hover:bg-white/[0.07]"
                   >
-                    <Repeat2 size={16} /> {viewer.reposted ? 'Undo repost' : 'Repost'}
+                    <Repeat2 size={16} /> {viewer.reposted ? t('undoRepost') : t('repost')}
                   </button>
                   <button
                     onClick={() => {
@@ -424,11 +426,11 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
                     onClick={() => {
                       setShareMenu(false);
                       navigator.clipboard?.writeText(`${window.location.origin}/post/${display.id}`);
-                      toast('Link copied to clipboard', 'success');
+                      toast(t('linkCopied'), 'success');
                     }}
                     className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-violet-50 dark:hover:bg-white/[0.07]"
                   >
-                    <Share size={16} /> Copy link
+                    <Share size={16} /> {t('copyLink')}
                   </button>
                   {typeof navigator !== 'undefined' && !!navigator.share && (
                     <button
@@ -446,7 +448,7 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
                       }}
                       className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-violet-50 dark:hover:bg-white/[0.07]"
                     >
-                      <Share2 size={16} /> Share to…
+                      <Share2 size={16} /> {t('shareTo')}
                     </button>
                   )}
                   <button
@@ -456,7 +458,7 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
                     }}
                     className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-violet-50 dark:hover:bg-white/[0.07]"
                   >
-                    <MessageCircle size={16} /> Send via message
+                    <MessageCircle size={16} /> {t('sendViaMessage')}
                   </button>
                 </div>
               )}
@@ -467,8 +469,8 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
 
       {sendOpen && <SendPostModal post={display} content={content} onClose={() => setSendOpen(false)} />}
 
-      <Modal open={quoteOpen} onClose={() => setQuoteOpen(false)} title="Quote post">
-        <PostComposer quotedPostId={display.id} autoFocus placeholder="Add a comment" onPosted={() => setQuoteOpen(false)} />
+      <Modal open={quoteOpen} onClose={() => setQuoteOpen(false)} title={t('quotePost')}>
+        <PostComposer quotedPostId={display.id} autoFocus placeholder={t('addComment')} onPosted={() => setQuoteOpen(false)} />
         <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-sm dark:border-white/10 dark:bg-white/[0.04]">
           <UserName user={display.author} compact />{' '}
           <span className="text-slate-500 dark:text-slate-400">@{display.author.username}</span>
@@ -476,7 +478,7 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
         </div>
       </Modal>
 
-      <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit post">
+      <Modal open={editOpen} onClose={() => setEditOpen(false)} title={t('editPost')}>
         <textarea
           value={editText}
           onChange={(e) => setEditText(e.target.value)}
@@ -494,12 +496,12 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
             disabled={editBusy || editText.trim().length === 0 || editText.length > 280}
             className="btn-primary"
           >
-            {editBusy ? 'Saving...' : 'Save'}
+            {editBusy ? t('saving') : t('save')}
           </button>
         </div>
       </Modal>
 
-      <Modal open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} title="Post analytics">
+      <Modal open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} title={t('postAnalytics')}>
         {!analytics ? (
           <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">Loading…</p>
         ) : (
@@ -541,6 +543,7 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
 
 // Picker for sharing a post into one of your existing conversations.
 function SendPostModal({ post, content, onClose }: { post: Post; content: string | null; onClose: () => void }) {
+  useLocale((s) => s.locale);
   const [sendingTo, setSendingTo] = useState<string | null>(null);
   const { data: conversations, isLoading } = useQuery({
     queryKey: ['conversations'],
@@ -560,7 +563,7 @@ function SendPostModal({ post, content, onClose }: { post: Post; content: string
           excerpt: content ?? '',
         }),
       });
-      toast(`Sent to ${conversation.other.displayName}`, 'success');
+      toast(`${t('sentTo')} ${conversation.other.displayName}`, 'success');
       onClose();
     } catch {
       toast('Could not send the post', 'error');
@@ -569,7 +572,7 @@ function SendPostModal({ post, content, onClose }: { post: Post; content: string
   }
 
   return (
-    <Modal open onClose={onClose} title="Send post">
+    <Modal open onClose={onClose} title={t('sendPost')}>
       <div onClick={(e) => e.stopPropagation()}>
         {isLoading ? (
           <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">Loading…</p>
@@ -592,7 +595,7 @@ function SendPostModal({ post, content, onClose }: { post: Post; content: string
                   <UserName user={c.other} className="max-w-full" compact />
                   <p className="truncate text-sm text-slate-500 dark:text-slate-400">@{c.other.username}</p>
                 </div>
-                <span className="text-sm font-bold text-brand">{sendingTo === c.id ? 'Sending…' : 'Send'}</span>
+                <span className="text-sm font-bold text-brand">{sendingTo === c.id ? t('sending') : t('send')}</span>
               </button>
             ))}
           </div>

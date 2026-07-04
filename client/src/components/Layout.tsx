@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { useRealtime } from '../store/realtime';
+import { useT } from '../lib/i18n';
 import { toast } from '../store/toast';
 import { Avatar } from './Avatar';
 import { Modal } from './Modal';
@@ -39,6 +40,7 @@ interface NavItem {
 }
 
 export function Layout() {
+  const t = useT();
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
   const navigate = useNavigate();
@@ -88,14 +90,14 @@ export function Layout() {
   if (!user) return null;
 
   const items: NavItem[] = [
-    { to: '/home', label: 'Home', icon: Home },
-    { to: '/explore', label: 'Explore', icon: Hash },
-    { to: '/communities', label: 'Servers', icon: Gamepad2 },
-    { to: '/notifications', label: 'Notifications', icon: Bell, badge: notifUnread },
-    { to: '/messages', label: 'Messages', icon: Mail, badge: dmUnread },
-    { to: '/bookmarks', label: 'Bookmarks', icon: Bookmark },
-    { to: `/${user.username}`, label: 'Profile', icon: User },
-    { to: '/settings', label: 'Settings', icon: Settings },
+    { to: '/home', label: t('navHome'), icon: Home },
+    { to: '/explore', label: t('navExplore'), icon: Hash },
+    { to: '/communities', label: t('navServers'), icon: Gamepad2 },
+    { to: '/notifications', label: t('navNotifications'), icon: Bell, badge: notifUnread },
+    { to: '/messages', label: t('navMessages'), icon: Mail, badge: dmUnread },
+    { to: '/bookmarks', label: t('navBookmarks'), icon: Bookmark },
+    { to: `/${user.username}`, label: t('navProfile'), icon: User },
+    { to: '/settings', label: t('navSettings'), icon: Settings },
   ];
 
   return (
@@ -149,14 +151,14 @@ export function Layout() {
               className="group flex min-h-12 items-center gap-4 rounded-lg px-3 py-2.5 text-lg text-slate-700 transition duration-200 hover:bg-white/75 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white"
             >
               <Search size={25} strokeWidth={2.2} className="transition duration-200 group-active:scale-90" />
-              <span className="hidden xl:inline">Search</span>
+              <span className="hidden xl:inline">{t('navSearch')}</span>
             </button>
             <ThemeToggle withLabel />
           </nav>
 
           <button onClick={() => setCompose(true)} className="btn-primary mt-4 w-12 xl:w-full xl:py-3">
             <Feather size={20} className="xl:hidden" />
-            <span className="hidden xl:inline">Post</span>
+            <span className="hidden xl:inline">{t('post')}</span>
           </button>
         </div>
 
@@ -184,7 +186,7 @@ export function Layout() {
                 }}
                 className="flex w-full items-center gap-2 px-4 py-3 font-bold transition hover:bg-violet-50 dark:hover:bg-white/[0.07]"
               >
-                <LogOut size={18} /> Log out @{user.username}
+                <LogOut size={18} /> {t('logOut')} @{user.username}
               </button>
             </div>
           )}
@@ -236,7 +238,7 @@ export function Layout() {
                     )}
                   </span>
                   <span className="max-w-full truncate px-1">
-                    {item.label === 'Notifications' ? 'Alerts' : item.label}
+                    {item.to === '/notifications' ? t('navAlerts') : item.label}
                   </span>
                 </>
               )}
@@ -254,7 +256,7 @@ export function Layout() {
                 <span className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full bg-accent ring-2 ring-white dark:ring-[#0a0714]" />
               )}
             </span>
-            <span>More</span>
+            <span>{t('navMore')}</span>
           </button>
         </nav>
       )}
@@ -275,7 +277,7 @@ export function Layout() {
       <Modal open={compose} onClose={() => setCompose(false)} title="">
         <PostComposer autoFocus onPosted={() => setCompose(false)} />
       </Modal>
-      <Modal open={mobileMenu} onClose={() => setMobileMenu(false)} title="Your Murmur">
+      <Modal open={mobileMenu} onClose={() => setMobileMenu(false)} title={t('yourMurmur')}>
         <div className="grid gap-2 pb-2">
           {[
             { to: `/${user.username}`, label: 'Profile', icon: User },
