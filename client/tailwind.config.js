@@ -32,8 +32,8 @@ export default {
           '100%': { opacity: '1' },
         },
         'page-enter': {
-          '0%': { opacity: '0', transform: 'translateY(5px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
+          '0%': { opacity: '0', transform: 'translateY(8px)', filter: 'blur(6px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)', filter: 'blur(0)' },
         },
         'feed-enter': {
           '0%': { opacity: '0', transform: 'translateY(8px)' },
@@ -49,7 +49,8 @@ export default {
           '100%': { transform: 'scale(1)' },
         },
         'modal-enter': {
-          '0%': { opacity: '0', transform: 'translateY(16px) scale(0.98)' },
+          '0%': { opacity: '0', transform: 'translateY(28px) scale(0.96)' },
+          '60%': { opacity: '1', transform: 'translateY(-5px) scale(1.005)' },
           '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
         },
         'slide-up': {
@@ -89,6 +90,18 @@ export default {
           '0%, 60%, 100%': { transform: 'translateY(0)', opacity: '0.4' },
           '30%': { transform: 'translateY(-3px)', opacity: '1' },
         },
+        // Poll result bars grow from zero to their inline width.
+        'bar-grow': {
+          from: { width: '0%' },
+        },
+        // Radial confetti dots for the like burst; direction via --angle.
+        'like-particle': {
+          '0%': { transform: 'rotate(var(--angle)) translateY(-6px) scale(1)', opacity: '1' },
+          '100%': { transform: 'rotate(var(--angle)) translateY(-26px) scale(0)', opacity: '0' },
+        },
+        'ring-spin': {
+          to: { transform: 'rotate(360deg)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.3s ease-out',
@@ -105,6 +118,9 @@ export default {
         'message-in': 'message-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both',
         'story-in': 'story-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both',
         'typing-dot': 'typing-dot 1.2s ease-in-out infinite',
+        'bar-grow': 'bar-grow 0.7s cubic-bezier(0.22, 1, 0.36, 1) both',
+        'like-particle': 'like-particle 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+        'ring-spin': 'ring-spin 5s linear infinite',
       },
     },
   },

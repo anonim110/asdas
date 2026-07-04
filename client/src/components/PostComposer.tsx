@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ImagePlus, X, Smile } from 'lucide-react';
+import { ImagePlus, X, Smile, ListTodo, Plus } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, errorMessage } from '../lib/api';
 import { useAuth } from '../store/auth';
@@ -48,8 +48,18 @@ export function PostComposer({
   const [token, setToken] = useState<ActiveToken | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [activeSuggestion, setActiveSuggestion] = useState(0);
+  const [pollOptions, setPollOptions] = useState<string[] | null>(null); // null = no poll
+  const [pollHours, setPollHours] = useState(24);
   const fileInput = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const POLL_DURATIONS: Array<[label: string, hours: number]> = [
+    ['1 hour', 1],
+    ['6 hours', 6],
+    ['1 day', 24],
+    ['3 days', 72],
+    ['7 days', 168],
+  ];
 
   function syncToken(value: string, caret: number) {
     const next = detectToken(value, caret);
@@ -103,7 +113,15 @@ export function PostComposer({
 
   const remaining = MAX - text.length;
   const overLimit = remaining < 0;
-  const canSubmit = (text.trim().length > 0 || files.length > 0) && !overLimit && !submitting;
+  const pollActive = pollOptions !== null;
+  const pollReady = !pollActive || pollOptions.filter((o) => o.trim()).length >= 2;
+  const canSubmit =
+    (text.trim().length > 0 || files.length > 0) &&
+    !overLimit &&
+    !submitting &&
+    pollReady &&
+    // A poll requires question text.
+    (!pollActive || text.trim().length > 0);
 
   function addFiles(list: FileList | null) {
     if (!list) return;
@@ -129,6 +147,12 @@ export function PostComposer({
       if (parentId) form.append('parentId', parentId);
       if (quotedPostId) form.append('quotedPostId', quotedPostId);
       if (communityId) form.append('communityId', communityId);
+      if (pollActive) {
+        form.append(
+          'poll',
+          JSON.stringify({ options: pollOptions.map((o) => o.trim()).filter(Boolean), durationHours: pollHours }),
+        );
+      }
       files.forEach((f) => form.append('media', f.file));
 
       const { data } = await api.post<{ post: Post }>('/posts', form, {
@@ -139,6 +163,7 @@ export function PostComposer({
       setFiles([]);
       setToken(null);
       setSuggestions([]);
+      setPollOptions(null);
       // Refresh feeds / threads that may now include this post.
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (communityId) queryClient.invalidateQueries({ queryKey: ['community-feed'] });
@@ -205,6 +230,61 @@ export function PostComposer({
           </div>
         )}
 
+        {pollActive && (
+          <div className="mb-3 animate-scale-in space-y-2 rounded-2xl border border-brand/25 p-3 dark:border-violet-400/20">
+            {pollOptions.map((opt, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input
+                  value={opt}
+                  onChange={(e) =>
+                    setPollOptions((cur) => cur!.map((o, j) => (j === i ? e.target.value : o)))
+                  }
+                  maxLength={50}
+                  placeholder={`Choice ${i + 1}${i >= 2 ? ' (optional)' : ''}`}
+                  className="input min-h-10 flex-1 rounded-xl"
+                />
+                {pollOptions.length > 2 && (
+                  <button
+                    type="button"
+                    onClick={() => setPollOptions((cur) => cur!.filter((_, j) => j !== i))}
+                    className="icon-button min-h-9 min-w-9"
+                    aria-label="Remove choice"
+                  >
+                    <X size={15} />
+                  </button>
+                )}
+              </div>
+            ))}
+            <div className="flex items-center justify-between gap-2 pt-1">
+              {pollOptions.length < 4 ? (
+                <button
+                  type="button"
+                  onClick={() => setPollOptions((cur) => [...cur!, ''])}
+                  className="flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-bold text-brand transition hover:bg-brand/10"
+                >
+                  <Plus size={15} /> Add choice
+                </button>
+              ) : (
+                <span />
+              )}
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400">
+                Poll length
+                <select
+                  value={pollHours}
+                  onChange={(e) => setPollHours(Number(e.target.value))}
+                  className="input min-h-9 w-auto rounded-xl py-1 text-sm"
+                >
+                  {POLL_DURATIONS.map(([label, hours]) => (
+                    <option key={hours} value={hours}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
+        )}
+
         {error && <p className="mb-2 rounded-2xl bg-red-50 px-3 py-2 text-sm font-medium text-red-600 dark:bg-red-500/10 dark:text-red-300">{error}</p>}
 
         <div className="flex items-center justify-between border-t border-slate-100 pt-3 dark:border-white/10">
@@ -212,12 +292,24 @@ export function PostComposer({
             <button
               type="button"
               onClick={() => fileInput.current?.click()}
-              disabled={files.length >= MAX_FILES}
+              disabled={files.length >= MAX_FILES || pollActive}
               className="icon-button text-brand disabled:cursor-not-allowed disabled:opacity-40"
               title="Add media"
               aria-label="Add media"
             >
               <ImagePlus size={20} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setPollOptions((cur) => (cur === null ? ['', ''] : null))}
+              disabled={files.length > 0}
+              className={`icon-button disabled:cursor-not-allowed disabled:opacity-40 ${
+                pollActive ? 'bg-brand/10 text-brand' : 'text-brand'
+              }`}
+              title={pollActive ? 'Remove poll' : 'Add poll'}
+              aria-label={pollActive ? 'Remove poll' : 'Add poll'}
+            >
+              <ListTodo size={20} />
             </button>
             <div className="relative">
               <button

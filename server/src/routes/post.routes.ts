@@ -5,7 +5,7 @@ import { requireAuth, optionalAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { upload } from '../middleware/upload';
 import { writeLimiter } from '../middleware/rateLimit';
-import { createPostSchema, updatePostSchema, cursorQuerySchema } from '../validators/schemas';
+import { createPostSchema, updatePostSchema, cursorQuerySchema, votePollSchema } from '../validators/schemas';
 
 const router = Router();
 
@@ -28,6 +28,8 @@ router.get('/:id/analytics', requireAuth, asyncHandler(post.analytics));
 router.get('/:id/replies', optionalAuth, validate({ query: cursorQuerySchema }), asyncHandler(post.getReplies));
 router.delete('/:id', requireAuth, asyncHandler(post.remove));
 router.patch('/:id', requireAuth, validate({ body: updatePostSchema }), asyncHandler(post.update));
+
+router.post('/:id/poll/vote', requireAuth, writeLimiter, validate({ body: votePollSchema }), asyncHandler(post.votePoll));
 
 router.post('/:id/like', requireAuth, asyncHandler(post.like));
 router.delete('/:id/like', requireAuth, asyncHandler(post.unlike));

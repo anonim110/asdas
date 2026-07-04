@@ -205,7 +205,7 @@ export function Layout() {
 
       {/* Mobile bottom navigation — floating rounded dock */}
       {!isChatRoute && (
-        <nav className="glass-strong fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.625rem)] z-40 grid grid-cols-5 rounded-[1.75rem] px-1 py-1 shadow-2xl lg:hidden">
+        <nav className="glass-strong fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.625rem)] z-40 grid animate-slide-up grid-cols-5 rounded-[1.75rem] px-1 py-1 shadow-2xl lg:hidden">
           {items
             .filter((item) => ['/home', '/explore', '/communities', '/messages'].includes(item.to))
             .map((item) => (

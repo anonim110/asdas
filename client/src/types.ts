@@ -51,6 +51,20 @@ export interface ViewerState {
   reposted: boolean;
 }
 
+export interface PollOption {
+  id: string;
+  text: string;
+  votes: number;
+}
+
+export interface Poll {
+  id: string;
+  endsAt: string;
+  options: PollOption[];
+  totalVotes: number;
+  viewerVote: string | null;
+}
+
 export interface Post {
   id: string;
   content: string | null;
@@ -65,6 +79,7 @@ export interface Post {
   viewer: ViewerState;
   repostOf: Post | null;
   quotedPost: Post | null;
+  poll?: Poll | null;
   pinned?: boolean;
 }
 

@@ -2,7 +2,7 @@ import { prisma } from '../config/prisma';
 import { MediaType } from '../types/enums';
 import { ApiError } from '../utils/apiError';
 import { extractHashtags, extractMentions } from '../utils/textParser';
-import { postInclude, serializePost } from './serializers';
+import { postInclude, serializePoll, serializePost } from './serializers';
 import { createNotification, removeNotification } from './notification.service';
 import { assertCanPostTo } from './community.service';
 import { emitToPost } from '../sockets/io';
@@ -14,6 +14,11 @@ export interface MediaInput {
   height?: number;
 }
 
+export interface PollInput {
+  options: string[];
+  durationHours: number;
+}
+
 interface CreatePostArgs {
   authorId: string;
   content?: string;
@@ -21,6 +26,23 @@ interface CreatePostArgs {
   parentId?: string;
   quotedPostId?: string;
   communityId?: string;
+  poll?: PollInput;
+}
+
+// Validates poll input from the client (2-4 non-empty options, 1h-7d).
+function validatePoll(poll: PollInput): { options: string[]; durationHours: number } {
+  const options = (poll.options ?? []).map((o) => String(o).trim()).filter(Boolean);
+  if (options.length < 2 || options.length > 4) {
+    throw ApiError.badRequest('A poll needs between 2 and 4 options');
+  }
+  if (options.some((o) => o.length > 50)) {
+    throw ApiError.badRequest('Poll options are limited to 50 characters');
+  }
+  const durationHours = Number(poll.durationHours);
+  if (!Number.isFinite(durationHours) || durationHours < 1 || durationHours > 168) {
+    throw ApiError.badRequest('Poll duration must be between 1 hour and 7 days');
+  }
+  return { options, durationHours };
 }
 
 // Links hashtags and mentions found in `content` to the post, and notifies
@@ -73,10 +95,17 @@ export async function createPost({
   parentId,
   quotedPostId,
   communityId,
+  poll,
 }: CreatePostArgs) {
   const trimmed = content?.trim() || undefined;
   if (!trimmed && (!media || media.length === 0)) {
     throw ApiError.badRequest('A post must contain text or media');
+  }
+  // Polls need a question and can't be combined with media attachments.
+  const validPoll = poll ? validatePoll(poll) : undefined;
+  if (validPoll && !trimmed) throw ApiError.badRequest('A poll needs a question in the post text');
+  if (validPoll && media && media.length > 0) {
+    throw ApiError.badRequest('A post cannot have both a poll and media');
   }
 
   // Validate referenced posts exist.
@@ -104,6 +133,14 @@ export async function createPost({
       media: media?.length
         ? { create: media.map((m) => ({ url: m.url, type: m.type, width: m.width, height: m.height })) }
         : undefined,
+      poll: validPoll
+        ? {
+            create: {
+              endsAt: new Date(Date.now() + validPoll.durationHours * 60 * 60 * 1000),
+              options: { create: validPoll.options.map((text, order) => ({ text, order })) },
+            },
+          }
+        : undefined,
     },
     include: postInclude(authorId),
   });
@@ -127,6 +164,41 @@ export async function createPost({
   // Re-fetch with viewer flags now that links exist.
   const full = await prisma.post.findUnique({ where: { id: post.id }, include: postInclude(authorId) });
   return serializePost(full!);
+}
+
+const pollWithCounts = (viewerId?: string) => ({
+  options: {
+    orderBy: { order: 'asc' as const },
+    include: { _count: { select: { votes: true } } },
+  },
+  ...(viewerId ? { votes: { where: { userId: viewerId }, select: { optionId: true } } } : {}),
+});
+
+// Cast (or change) a vote in a post's poll. Votes can be switched until the
+// poll closes. Everyone watching the post gets a live 'poll:update'.
+export async function votePoll(postId: string, userId: string, optionId: string) {
+  const poll = await prisma.poll.findUnique({
+    where: { postId },
+    include: { options: { select: { id: true } } },
+  });
+  if (!poll) throw ApiError.notFound('This post has no poll');
+  if (poll.endsAt <= new Date()) throw ApiError.badRequest('This poll has ended');
+  if (!poll.options.some((o) => o.id === optionId)) throw ApiError.badRequest('Unknown poll option');
+
+  await prisma.pollVote.upsert({
+    where: { pollId_userId: { pollId: poll.id, userId } },
+    create: { pollId: poll.id, optionId, userId },
+    update: { optionId },
+  });
+
+  const fresh = await prisma.poll.findUnique({
+    where: { id: poll.id },
+    include: pollWithCounts(userId),
+  });
+  const serialized = serializePoll(fresh);
+  // Broadcast without the voter's personal choice; clients keep their own.
+  emitToPost(postId, 'poll:update', { postId, poll: { ...serialized, viewerVote: null } });
+  return serialized;
 }
 
 export async function getPostById(id: string, viewerId?: string) {

@@ -28,6 +28,7 @@ import { Dismiss } from './Dismiss';
 import { PostComposer } from './PostComposer';
 import { UserName } from './UserName';
 import { GameStatus } from './GameStatus';
+import { PollView } from './PollView';
 import type { Conversation, Post, PostCounts, ViewerState, PostAnalytics } from '../types';
 
 interface Props {
@@ -281,6 +282,8 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
 
           <MediaGrid media={display.media} />
 
+          {display.poll && <PollView postId={display.id} poll={display.poll} />}
+
           {display.quotedPost && <QuoteEmbed post={display.quotedPost} />}
 
           <div className="mt-3 flex max-w-md items-center justify-between text-slate-500 dark:text-slate-400">
@@ -346,7 +349,19 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
               <span className="relative rounded-full p-1.5 group-hover:bg-brand/10">
                 <Heart size={18} fill={viewer.liked ? 'currentColor' : 'none'} className={likeBurst ? 'animate-pop' : ''} />
                 {likeBurst && (
-                  <span className="pointer-events-none absolute inset-0 m-auto h-5 w-5 animate-heart-burst rounded-full border-2 border-brand" />
+                  <>
+                    <span className="pointer-events-none absolute inset-0 m-auto h-5 w-5 animate-heart-burst rounded-full border-2 border-brand" />
+                    {/* Radial confetti dots flying out of the heart */}
+                    {Array.from({ length: 6 }, (_, i) => (
+                      <span
+                        key={i}
+                        style={{ '--angle': `${i * 60 + 15}deg` } as React.CSSProperties}
+                        className={`pointer-events-none absolute inset-0 m-auto h-1.5 w-1.5 animate-like-particle rounded-full ${
+                          i % 2 ? 'bg-accent' : 'bg-brand'
+                        }`}
+                      />
+                    ))}
+                  </>
                 )}
               </span>
               {counts.likes > 0 && <span className="text-sm tabular-nums">{compactNumber(counts.likes)}</span>}

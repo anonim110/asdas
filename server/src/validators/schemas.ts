@@ -61,6 +61,13 @@ export const createPostSchema = z.object({
   quotedPostId: z.string().cuid().optional(),
   // When set, the post is published into a community (group) feed.
   communityId: z.string().cuid().optional(),
+  // Optional attached poll as a JSON string ({ options, durationHours });
+  // parsed by the controller and validated in the service.
+  poll: z.string().max(1000).optional(),
+});
+
+export const votePollSchema = z.object({
+  optionId: z.string().cuid(),
 });
 
 export const quoteSchema = z.object({

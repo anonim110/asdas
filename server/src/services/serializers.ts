@@ -20,6 +20,15 @@ function baseInclude(viewerId?: string): Prisma.PostInclude {
     media: true,
     hashtags: { include: { hashtag: true } },
     community: { select: { id: true, slug: true, name: true } },
+    poll: {
+      include: {
+        options: {
+          orderBy: { order: 'asc' },
+          include: { _count: { select: { votes: true } } },
+        },
+        ...(viewerId ? { votes: { where: { userId: viewerId }, select: { optionId: true } } } : {}),
+      },
+    },
     _count: { select: { likes: true, reposts: true, replies: true, quotes: true } },
   };
   if (viewerId) {
@@ -28,6 +37,24 @@ function baseInclude(viewerId?: string): Prisma.PostInclude {
     include.reposts = { where: { authorId: viewerId }, select: { id: true } };
   }
   return include;
+}
+
+// Public shape of a poll attached to a post. `viewerVote` is the option the
+// requesting user picked (null when anonymous / not voted).
+export function serializePoll(poll: AnyPost | null | undefined) {
+  if (!poll) return null;
+  const options = (poll.options ?? []).map((o: AnyPost) => ({
+    id: o.id,
+    text: o.text,
+    votes: o._count?.votes ?? 0,
+  }));
+  return {
+    id: poll.id,
+    endsAt: poll.endsAt,
+    options,
+    totalVotes: options.reduce((sum: number, o: { votes: number }) => sum + o.votes, 0),
+    viewerVote: poll.votes?.[0]?.optionId ?? null,
+  };
 }
 
 // One level of nesting so reposts/quotes carry the embedded original post.
@@ -62,6 +89,7 @@ function serializeOne(p: AnyPost) {
     community: p.community
       ? { id: p.community.id, slug: p.community.slug, name: p.community.name }
       : null,
+    poll: serializePoll(p.poll),
     counts: {
       likes: p._count?.likes ?? 0,
       reposts: p._count?.reposts ?? 0,

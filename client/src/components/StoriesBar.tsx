@@ -138,13 +138,6 @@ function StoryRing({
   onClick: () => void;
   onBadgeClick?: () => void;
 }) {
-  const ring =
-    state === 'unseen'
-      ? 'bg-[conic-gradient(from_210deg,#22d3ee,#8b5cf6,#d946ef,#22d3ee)]'
-      : state === 'seen'
-        ? 'bg-slate-300 dark:bg-white/20'
-        : 'bg-transparent';
-
   return (
     <button
       type="button"
@@ -152,8 +145,19 @@ function StoryRing({
       className="group flex w-16 shrink-0 flex-col items-center gap-1 outline-none transition duration-200 active:scale-95"
     >
       <div className="relative transition duration-200 group-hover:scale-105">
-        <div className={`rounded-full p-[2.5px] ${ring}`}>
-          <div className="rounded-full bg-white p-[2px] dark:bg-[#0a0714]">
+        <div className="relative overflow-hidden rounded-full p-[2.5px]">
+          {/* Ring layer. Unseen rings slowly rotate their conic gradient;
+              oversized so the spinning square always covers the circle. */}
+          {state === 'unseen' ? (
+            <span className="absolute -inset-2 animate-ring-spin bg-[conic-gradient(from_210deg,#22d3ee,#8b5cf6,#d946ef,#22d3ee)]" />
+          ) : (
+            <span
+              className={`absolute inset-0 ${
+                state === 'seen' ? 'bg-slate-300 dark:bg-white/20' : 'bg-transparent'
+              }`}
+            />
+          )}
+          <div className="relative rounded-full bg-white p-[2px] dark:bg-[#0a0714]">
             <Avatar user={author} size="lg" linkable={false} />
           </div>
         </div>

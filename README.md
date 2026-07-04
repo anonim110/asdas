@@ -21,6 +21,8 @@ The project runs out-of-the-box on **SQLite** (zero install) and can switch to
 
 **Posts**
 - Compose posts (280-char limit) with images, video and GIFs (up to 4 attachments)
+- Polls (2-4 options, 1h-7d) with live-updating animated results, vote
+  switching until close, and leader highlighting
 - Likes, reposts (retweets), quote-reposts
 - Replies with nested threads (ancestors + replies)
 - Delete your own posts; pin a post to your profile
@@ -60,6 +62,10 @@ The project runs out-of-the-box on **SQLite** (zero install) and can switch to
   typeface (bundled locally, CSP-safe)
 - Feed rendered as floating frosted-glass cards; floating rounded dock
   navigation on mobile, gradient pill navigation on desktop
+- Living motion design: slowly-drifting aurora background, confetti like
+  bursts, light sweeps on buttons, spinning unseen-story rings, spring
+  modals, blurred page transitions — all disabled under
+  `prefers-reduced-motion`
 
 **Extras**
 - Light / dark theme (persisted) with smooth transitions

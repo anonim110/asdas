@@ -20,6 +20,17 @@ async function filesToMedia(req: Request): Promise<MediaInput[]> {
   );
 }
 
+// Poll data arrives as a JSON string field inside the multipart form.
+function parsePollField(raw: unknown): postService.PollInput | undefined {
+  if (typeof raw !== 'string' || !raw.trim()) return undefined;
+  try {
+    const parsed = JSON.parse(raw);
+    return { options: parsed.options ?? [], durationHours: parsed.durationHours ?? 0 };
+  } catch {
+    return undefined;
+  }
+}
+
 export async function create(req: Request, res: Response) {
   const media = await filesToMedia(req);
   const post = await postService.createPost({
@@ -29,8 +40,14 @@ export async function create(req: Request, res: Response) {
     quotedPostId: req.body.quotedPostId || undefined,
     communityId: req.body.communityId || undefined,
     media,
+    poll: parsePollField(req.body.poll),
   });
   res.status(201).json({ post });
+}
+
+export async function votePoll(req: Request, res: Response) {
+  const poll = await postService.votePoll(req.params.id, req.userId!, req.body.optionId);
+  res.json({ poll });
 }
 
 export async function getOne(req: Request, res: Response) {
