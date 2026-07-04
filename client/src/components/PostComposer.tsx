@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ImagePlus, X, Smile, ListTodo, Plus } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, errorMessage } from '../lib/api';
@@ -12,6 +12,7 @@ import type { Post } from '../types';
 
 const MAX = 280;
 const MAX_FILES = 4;
+const DRAFT_KEY = 'murmur:composer-draft';
 
 interface Props {
   placeholder?: string;
@@ -40,7 +41,17 @@ export function PostComposer({
 }: Props) {
   const user = useAuth((s) => s.user);
   const queryClient = useQueryClient();
-  const [text, setText] = useState('');
+  // Top-level composers share a persisted draft so an accidental refresh or
+  // closed modal never loses a half-written post.
+  const isDraftable = !parentId && !quotedPostId && !communityId;
+  const [text, setText] = useState(() => {
+    if (!isDraftable) return '';
+    try {
+      return localStorage.getItem(DRAFT_KEY) ?? '';
+    } catch {
+      return '';
+    }
+  });
   const [files, setFiles] = useState<Attachment[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -52,6 +63,20 @@ export function PostComposer({
   const [pollHours, setPollHours] = useState(24);
   const fileInput = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Persist the draft (debounced) while typing; cleared on publish.
+  useEffect(() => {
+    if (!isDraftable) return;
+    const timer = setTimeout(() => {
+      try {
+        if (text.trim()) localStorage.setItem(DRAFT_KEY, text);
+        else localStorage.removeItem(DRAFT_KEY);
+      } catch {
+        /* storage full/unavailable — drafts are best-effort */
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [text, isDraftable]);
 
   const POLL_DURATIONS: Array<[label: string, hours: number]> = [
     ['1 hour', 1],
@@ -164,6 +189,13 @@ export function PostComposer({
       setToken(null);
       setSuggestions([]);
       setPollOptions(null);
+      if (isDraftable) {
+        try {
+          localStorage.removeItem(DRAFT_KEY);
+        } catch {
+          /* ignore */
+        }
+      }
       // Refresh feeds / threads that may now include this post.
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (communityId) queryClient.invalidateQueries({ queryKey: ['community-feed'] });

@@ -299,7 +299,11 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
               <span className="rounded-full p-1.5 group-hover:bg-brand/10">
                 <MessageCircle size={18} />
               </span>
-              {counts.replies > 0 && <span className="text-sm">{compactNumber(counts.replies)}</span>}
+              {counts.replies > 0 && (
+                <span key={counts.replies} className="inline-block animate-scale-in text-sm tabular-nums">
+                  {compactNumber(counts.replies)}
+                </span>
+              )}
             </button>
 
             <div className="relative">
@@ -316,7 +320,11 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
                 <span className="rounded-full p-1.5 group-hover:bg-green-500/10">
                   <Repeat2 size={18} className={viewer.reposted ? 'animate-nav-pop' : ''} />
                 </span>
-                {counts.reposts > 0 && <span className="text-sm">{compactNumber(counts.reposts)}</span>}
+                {counts.reposts > 0 && (
+                  <span key={counts.reposts} className="inline-block animate-scale-in text-sm tabular-nums">
+                    {compactNumber(counts.reposts)}
+                  </span>
+                )}
               </button>
               {repostMenu && <Dismiss onDismiss={() => setRepostMenu(false)} />}
               {repostMenu && (
@@ -365,7 +373,11 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
                   </>
                 )}
               </span>
-              {counts.likes > 0 && <span className="text-sm tabular-nums">{compactNumber(counts.likes)}</span>}
+              {counts.likes > 0 && (
+                <span key={counts.likes} className="inline-block animate-scale-in text-sm tabular-nums">
+                  {compactNumber(counts.likes)}
+                </span>
+              )}
             </button>
 
             {counts.views > 0 && (

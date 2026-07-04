@@ -46,16 +46,20 @@ The project runs out-of-the-box on **SQLite** (zero install) and can switch to
   delete your own stories
 - Reply to a story or send a quick emoji reaction — delivered as a DM with a
   thumbnail of the story
+- Story composer: preview the photo/video and add a caption before publishing
 
 **Notifications** (realtime)
 - Likes, reposts, quotes, replies, follows, @mentions
 - Unread badge pushed over WebSocket
 
 **Direct messages** (realtime)
-- 1:1 conversations, typing indicators, read receipts
+- 1:1 conversations, typing indicators, read receipts (✓ sent / ✓✓ read)
 - Reply to messages (quoted snippet, click to jump back) and edit sent
   messages with an "edited" label
+- Forward messages to other conversations
 - Share any post into a conversation as a rich card that deep-links back to it
+- "Online now" row and live "typing..." previews in the conversation list
+- Post drafts autosave locally so a refresh never loses a half-written post
 
 **Design ("Aurora")**
 - Electric-violet + cyan palette over an ambient aurora backdrop, Manrope

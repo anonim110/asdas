@@ -1,13 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Send } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { useAuth } from '../store/auth';
 import { useToast } from '../store/toast';
 import { Avatar } from './Avatar';
+import { Modal } from './Modal';
 import { StoryViewer } from './StoryViewer';
 import type { StoryGroup } from '../types';
+
+interface PendingStory {
+  file: File;
+  preview: string;
+  isVideo: boolean;
+}
 
 // Horizontal row of story rings shown at the top of the Home feed. The first
 // tile is always "Your story" (create or view own), followed by people the
@@ -18,6 +25,8 @@ export function StoriesBar() {
   const toast = useToast((s) => s.show);
   const [viewerAt, setViewerAt] = useState<number | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [pending, setPending] = useState<PendingStory | null>(null);
+  const [caption, setCaption] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: groups } = useQuery({
@@ -40,20 +49,34 @@ export function StoriesBar() {
     };
   }, [queryClient]);
 
-  async function publish(file: File | undefined) {
-    if (!file || isPublishing) return;
+  // Picking a file opens a preview modal where a caption can be added.
+  function pickFile(file: File | undefined) {
+    if (!file) return;
+    setCaption('');
+    setPending({ file, preview: URL.createObjectURL(file), isVideo: file.type.startsWith('video/') });
+    if (fileRef.current) fileRef.current.value = '';
+  }
+
+  function closeComposer() {
+    if (pending) URL.revokeObjectURL(pending.preview);
+    setPending(null);
+  }
+
+  async function publish() {
+    if (!pending || isPublishing) return;
     setIsPublishing(true);
     try {
       const form = new FormData();
-      form.append('media', file);
+      form.append('media', pending.file);
+      if (caption.trim()) form.append('caption', caption.trim());
       await api.post('/stories', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      closeComposer();
       await queryClient.invalidateQueries({ queryKey: ['stories'] });
       toast('Story published');
     } catch (err) {
       toast(errorMessage(err, 'Could not publish story'));
     } finally {
       setIsPublishing(false);
-      if (fileRef.current) fileRef.current.value = '';
     }
   }
 
@@ -84,7 +107,7 @@ export function StoriesBar() {
         type="file"
         accept="image/*,video/*"
         hidden
-        onChange={(e) => publish(e.target.files?.[0])}
+        onChange={(e) => pickFile(e.target.files?.[0])}
       />
       <div className="flex items-start gap-3">
         {/* Your story: opens the viewer when you have one, otherwise picks a file. */}
@@ -105,12 +128,13 @@ export function StoriesBar() {
             else fileRef.current?.click();
           }}
         />
-        {others.map((g) => (
+        {others.map((g, i) => (
           <StoryRing
             key={g.author.id}
             label={g.author.displayName}
             author={g.author}
             state={g.allViewed ? 'seen' : 'unseen'}
+            index={i + 1}
             onClick={() => setViewerAt(list.indexOf(g))}
           />
         ))}
@@ -119,6 +143,32 @@ export function StoriesBar() {
       {viewerAt !== null && list[viewerAt] && (
         <StoryViewer groups={list} initialGroup={viewerAt} onClose={() => setViewerAt(null)} />
       )}
+
+      {/* Story composer: preview the picked media and add a caption. */}
+      <Modal open={!!pending} onClose={closeComposer} title="New story">
+        {pending && (
+          <div className="space-y-3 pt-1">
+            <div className="mx-auto max-h-[52dvh] overflow-hidden rounded-2xl bg-black">
+              {pending.isVideo ? (
+                <video src={pending.preview} autoPlay muted loop playsInline className="mx-auto max-h-[52dvh] object-contain" />
+              ) : (
+                <img src={pending.preview} className="mx-auto max-h-[52dvh] object-contain" alt="Story preview" />
+              )}
+            </div>
+            <input
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              maxLength={200}
+              placeholder="Add a caption..."
+              className="input rounded-2xl"
+            />
+            <button onClick={publish} disabled={isPublishing} className="btn-primary w-full">
+              {isPublishing ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+              {isPublishing ? 'Publishing...' : 'Share to your story'}
+            </button>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
@@ -128,6 +178,7 @@ function StoryRing({
   author,
   state,
   badge,
+  index = 0,
   onClick,
   onBadgeClick,
 }: {
@@ -135,6 +186,7 @@ function StoryRing({
   author: { id?: string; username: string; displayName: string; avatarUrl: string | null };
   state: 'unseen' | 'seen' | 'none';
   badge?: React.ReactNode;
+  index?: number;
   onClick: () => void;
   onBadgeClick?: () => void;
 }) {
@@ -142,7 +194,8 @@ function StoryRing({
     <button
       type="button"
       onClick={onClick}
-      className="group flex w-16 shrink-0 flex-col items-center gap-1 outline-none transition duration-200 active:scale-95"
+      style={{ animationDelay: `${Math.min(index, 10) * 45}ms` }}
+      className="group flex w-16 shrink-0 animate-feed-enter flex-col items-center gap-1 outline-none transition duration-200 active:scale-95"
     >
       <div className="relative transition duration-200 group-hover:scale-105">
         <div className="relative overflow-hidden rounded-full p-[2.5px]">

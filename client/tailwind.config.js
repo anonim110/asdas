@@ -102,6 +102,14 @@ export default {
         'ring-spin': {
           to: { transform: 'rotate(360deg)' },
         },
+        'fade-out': {
+          '0%': { opacity: '1' },
+          '100%': { opacity: '0' },
+        },
+        'modal-exit': {
+          '0%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+          '100%': { opacity: '0', transform: 'translateY(14px) scale(0.97)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.3s ease-out',
@@ -121,6 +129,8 @@ export default {
         'bar-grow': 'bar-grow 0.7s cubic-bezier(0.22, 1, 0.36, 1) both',
         'like-particle': 'like-particle 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards',
         'ring-spin': 'ring-spin 5s linear infinite',
+        'fade-out': 'fade-out 0.18s ease-in forwards',
+        'modal-exit': 'modal-exit 0.18s cubic-bezier(0.4, 0, 1, 1) forwards',
       },
     },
   },

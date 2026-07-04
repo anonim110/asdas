@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Send, ImagePlus, Smile, X, Phone, Video, Search, Gamepad2, Mic, CircleDot, Trash2, Reply, Pencil, ChevronDown } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Send, ImagePlus, Smile, X, Phone, Video, Search, Gamepad2, Mic, CircleDot, Trash2, Reply, Pencil, ChevronDown, Check, CheckCheck, Forward } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { useAuth } from '../store/auth';
+import { toast as toastGlobal } from '../store/toast';
 import { useRealtime } from '../store/realtime';
 import { usePresence } from '../store/presence';
 import { useCall } from '../store/call';
@@ -57,6 +58,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [editing, setEditing] = useState<Message | null>(null);
+  const [forwardMsg, setForwardMsg] = useState<Message | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [showJump, setShowJump] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -623,7 +625,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
               }}
               className={`group mb-2 flex animate-message-in flex-col rounded-2xl transition-colors duration-500 ${
                 highlightId === m.id ? 'bg-brand/10' : ''
-              } ${mine ? 'items-end' : 'items-start'}`}
+              } ${mine ? 'origin-bottom-right items-end' : 'origin-bottom-left items-start'}`}
             >
               <div className={`flex max-w-[88%] items-center gap-1 sm:max-w-[80%] ${mine ? 'flex-row-reverse' : 'flex-row'}`}>
                 <div
@@ -740,10 +742,16 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
                       )}
                     </>
                   )}
-                  <p className={`px-3 pb-1 text-[11px] ${mine && !deleted ? 'text-white/75' : 'text-slate-500 dark:text-slate-400'}`}>
+                  <p className={`flex items-center gap-1 px-3 pb-1 text-[11px] ${mine && !deleted ? 'text-white/75' : 'text-slate-500 dark:text-slate-400'}`}>
                     {relativeTime(m.createdAt)}
                     {m.editedAt && !deleted ? ' - edited' : ''}
-                    {mine && m.readAt && !deleted ? ' - Read' : ''}
+                    {mine &&
+                      !deleted &&
+                      (m.readAt ? (
+                        <CheckCheck size={13} className="shrink-0" aria-label="Read" />
+                      ) : (
+                        <Check size={13} className="shrink-0 opacity-60" aria-label="Sent" />
+                      ))}
                   </p>
                 </div>
 
@@ -785,6 +793,20 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
                           >
                             <Reply size={16} />
                           </button>
+                          {!!m.content && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMenuFor(null);
+                                setForwardMsg(m);
+                              }}
+                              className="flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-black/5 dark:text-slate-300 dark:hover:bg-white/10"
+                              aria-label="Forward message"
+                              title="Forward"
+                            >
+                              <Forward size={16} />
+                            </button>
+                          )}
                           {editable && (
                             <button
                               type="button"
@@ -1072,6 +1094,80 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
           </button>
         </form>
       </Modal>
+
+      {forwardMsg && (
+        <ForwardModal
+          message={forwardMsg}
+          currentConversationId={conversation.id}
+          onClose={() => setForwardMsg(null)}
+        />
+      )}
     </div>
+  );
+}
+
+// Picker for forwarding a text/card message into another conversation.
+function ForwardModal({
+  message,
+  currentConversationId,
+  onClose,
+}: {
+  message: Message;
+  currentConversationId: string;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [sendingTo, setSendingTo] = useState<string | null>(null);
+  const { data: conversations, isLoading } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: async () =>
+      (await api.get<{ conversations: Conversation[] }>('/conversations')).data.conversations,
+  });
+  const targets = (conversations ?? []).filter((c) => c.id !== currentConversationId);
+
+  async function forwardTo(target: Conversation) {
+    if (sendingTo) return;
+    setSendingTo(target.id);
+    try {
+      await api.post(`/conversations/${target.id}/messages`, { content: message.content });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      toastGlobal(`Forwarded to ${target.other.displayName}`, 'success');
+      onClose();
+    } catch {
+      toastGlobal('Could not forward the message', 'error');
+      setSendingTo(null);
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Forward message">
+      <p className="mb-2 truncate rounded-2xl bg-slate-100 px-3 py-2 text-sm text-slate-600 dark:bg-white/[0.06] dark:text-slate-300">
+        {messagePreview(message.content) || 'Message'}
+      </p>
+      {isLoading ? (
+        <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">Loading…</p>
+      ) : targets.length === 0 ? (
+        <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">No other conversations yet.</p>
+      ) : (
+        <div className="max-h-80 overflow-y-auto py-1">
+          {targets.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              disabled={!!sendingTo}
+              onClick={() => forwardTo(c)}
+              className="flex w-full items-center gap-3 rounded-2xl px-2 py-2.5 text-left transition hover:bg-violet-50 disabled:opacity-60 dark:hover:bg-white/[0.06]"
+            >
+              <Avatar user={c.other} linkable={false} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-bold">{c.other.displayName}</p>
+                <p className="truncate text-sm text-slate-500 dark:text-slate-400">@{c.other.username}</p>
+              </div>
+              <span className="text-sm font-bold text-brand">{sendingTo === c.id ? 'Sending…' : 'Send'}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </Modal>
   );
 }
