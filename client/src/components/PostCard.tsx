@@ -12,6 +12,7 @@ import {
   Quote as QuoteIcon,
   BarChart2,
   Pencil,
+  Share2,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
@@ -417,6 +418,25 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
                   >
                     <Share size={16} /> Copy link
                   </button>
+                  {typeof navigator !== 'undefined' && !!navigator.share && (
+                    <button
+                      onClick={async () => {
+                        setShareMenu(false);
+                        try {
+                          await navigator.share({
+                            title: `${display.author.displayName} on Murmur`,
+                            text: content ?? 'Check out this post on Murmur',
+                            url: `${window.location.origin}/post/${display.id}`,
+                          });
+                        } catch {
+                          /* user dismissed the native sheet */
+                        }
+                      }}
+                      className="flex w-full items-center gap-2 px-4 py-3 text-left font-medium transition hover:bg-violet-50 dark:hover:bg-white/[0.07]"
+                    >
+                      <Share2 size={16} /> Share to…
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       setShareMenu(false);

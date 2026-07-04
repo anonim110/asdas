@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Heart, Repeat2, UserPlus, AtSign, MessageCircle, Quote, Bell } from 'lucide-react';
@@ -31,8 +31,18 @@ const VERB: Record<NotificationType, string> = {
   REPLY: 'replied to your post',
 };
 
+type Filter = 'all' | 'mentions' | 'likes' | 'follows';
+
+const FILTERS: Array<{ key: Filter; label: string; types: NotificationType[] | null }> = [
+  { key: 'all', label: 'All', types: null },
+  { key: 'mentions', label: 'Mentions', types: ['MENTION', 'REPLY', 'QUOTE'] },
+  { key: 'likes', label: 'Likes', types: ['LIKE', 'REPOST'] },
+  { key: 'follows', label: 'Follows', types: ['FOLLOW'] },
+];
+
 export function Notifications() {
   const setNotifUnread = useRealtime((s) => s.setNotifUnread);
+  const [filter, setFilter] = useState<Filter>('all');
 
   const query = useInfiniteQuery({
     queryKey: ['notifications'],
@@ -56,18 +66,40 @@ export function Notifications() {
     query.hasNextPage,
   );
 
-  const items = query.data?.pages.flatMap((p) => p.items) ?? [];
+  const allItems = query.data?.pages.flatMap((p) => p.items) ?? [];
+  const activeTypes = FILTERS.find((f) => f.key === filter)!.types;
+  const items = activeTypes ? allItems.filter((n) => activeTypes.includes(n.type)) : allItems;
 
   return (
     <div>
-      <PageHeader title="Notifications" />
+      <PageHeader title="Notifications">
+        <div className="scrollbar-none flex gap-2 overflow-x-auto px-3 pb-2">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-bold transition duration-200 ${
+                filter === f.key
+                  ? 'bg-brand text-white shadow-sm'
+                  : 'bg-black/[0.04] text-slate-600 hover:bg-black/[0.07] dark:bg-white/[0.06] dark:text-slate-300 dark:hover:bg-white/[0.1]'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </PageHeader>
       {query.isLoading ? (
         <Spinner />
       ) : items.length === 0 ? (
         <EmptyState
           icon={Bell}
-          title="No notifications yet"
-          subtitle="When people like, reply to, repost or follow you, it'll show up here."
+          title={filter === 'all' ? 'No notifications yet' : 'Nothing here yet'}
+          subtitle={
+            filter === 'all'
+              ? "When people like, reply to, repost or follow you, it'll show up here."
+              : 'No notifications match this filter.'
+          }
         />
       ) : (
         <>
@@ -78,7 +110,7 @@ export function Notifications() {
               <Link
                 key={n.id}
                 to={href}
-                className={`flex gap-3 px-4 py-4 transition hover:bg-gray-50 dark:hover:bg-gray-950 ${
+                className={`post-card flex gap-3 px-4 py-4 ${
                   n.read ? '' : 'border-l-2 border-l-brand bg-brand/5'
                 } card`}
               >

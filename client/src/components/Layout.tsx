@@ -51,7 +51,10 @@ export function Layout() {
   const isMessagesRoute = location.pathname.startsWith('/messages');
   const isChatRoute = /^\/messages\/[^/]+/.test(location.pathname);
   const isCommunityDetailRoute = /^\/communities\/[^/]+/.test(location.pathname);
-  const showMobileComposer = !isChatRoute && !isCommunityDetailRoute;
+  // The Home feed already shows an inline composer, so the floating compose
+  // button there only overlaps post actions — hide it on Home.
+  const showMobileComposer =
+    !isChatRoute && !isCommunityDetailRoute && location.pathname !== '/home' && !isMessagesRoute;
 
   useEffect(() => {
     const openSearch = (event: KeyboardEvent) => {

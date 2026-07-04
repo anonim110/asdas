@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Send, ImagePlus, Smile, X, Phone, Video, Search, Gamepad2, Mic, CircleDot, Trash2, Reply, Pencil } from 'lucide-react';
+import { ArrowLeft, Send, ImagePlus, Smile, X, Phone, Video, Search, Gamepad2, Mic, CircleDot, Trash2, Reply, Pencil, ChevronDown } from 'lucide-react';
 import { api, errorMessage } from '../lib/api';
 import { getSocket } from '../lib/socket';
 import { useAuth } from '../store/auth';
@@ -58,6 +58,8 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [editing, setEditing] = useState<Message | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [showJump, setShowJump] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -494,7 +496,7 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
     : messages;
 
   return (
-    <div className="flex h-[100dvh] min-h-0 min-w-0 flex-col overflow-hidden">
+    <div className="relative flex h-[100dvh] min-h-0 min-w-0 flex-col overflow-hidden">
       <div className="glass-bar safe-top z-10 flex min-h-16 shrink-0 items-center gap-2 px-2 py-2 sm:gap-3 sm:px-4 sm:py-3">
         <Link to="/messages" className="-ml-1 icon-button md:hidden" aria-label="Back to conversations">
           <ArrowLeft size={20} />
@@ -566,7 +568,15 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
         </div>
       )}
 
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-4">
+      <div
+        ref={scrollRef}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          // "Jump to latest" appears once the user scrolls up a screenful.
+          setShowJump(el.scrollHeight - el.scrollTop - el.clientHeight > 400);
+        }}
+        className="relative min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 sm:px-4"
+      >
         {nextCursor && (
           <button onClick={loadOlder} className="mx-auto mb-4 block rounded-full px-4 py-2 text-sm font-bold text-brand hover:bg-violet-50 dark:hover:bg-white/[0.06]">
             Load older messages
@@ -846,6 +856,17 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
         <div ref={bottomRef} />
       </div>
 
+      {showJump && (
+        <button
+          type="button"
+          onClick={() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' })}
+          className="glass-strong absolute bottom-24 right-4 z-10 flex h-11 w-11 animate-scale-in items-center justify-center rounded-full text-brand shadow-lg"
+          aria-label="Jump to latest messages"
+        >
+          <ChevronDown size={22} />
+        </button>
+      )}
+
       {error && (
         <div className="mx-3 mb-2 flex items-center justify-between gap-3 rounded-2xl bg-red-50 px-3 py-2 text-sm font-medium text-red-600 dark:bg-red-500/10 dark:text-red-300">
           <span>{error}</span>
@@ -961,8 +982,8 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
               }
             }}
             rows={1}
-            placeholder="Start a new message"
-            className="input max-h-32 min-h-11 min-w-0 flex-1 resize-none rounded-2xl px-3 leading-6"
+            placeholder="Message..."
+            className="input max-h-32 min-h-11 min-w-0 flex-1 resize-none rounded-2xl px-3 py-2 leading-6"
           />
           <button
             type="button"
