@@ -70,22 +70,30 @@ export function postInclude(viewerId?: string): Prisma.PostInclude {
 type AnyPost = Record<string, any>;
 
 function serializeOne(p: AnyPost) {
+  // Time capsule still sealed: strip everything that could leak the payload
+  // (text, media, hashtags) for every viewer, the author included. The
+  // check happens at read time, so the post "opens" with no cron job.
+  const sealed = !!p.unlockAt && new Date(p.unlockAt).getTime() > Date.now();
   return {
     id: p.id,
-    content: p.content ?? null,
+    content: sealed ? null : (p.content ?? null),
+    locked: sealed,
+    unlockAt: p.unlockAt ?? null,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
     editedAt: p.editedAt ?? null,
     parentId: p.parentId ?? null,
     author: p.author,
-    media: (p.media ?? []).map((m: AnyPost) => ({
-      id: m.id,
-      url: m.url,
-      type: m.type,
-      width: m.width,
-      height: m.height,
-    })),
-    hashtags: (p.hashtags ?? []).map((h: AnyPost) => h.hashtag.tag),
+    media: sealed
+      ? []
+      : (p.media ?? []).map((m: AnyPost) => ({
+          id: m.id,
+          url: m.url,
+          type: m.type,
+          width: m.width,
+          height: m.height,
+        })),
+    hashtags: sealed ? [] : (p.hashtags ?? []).map((h: AnyPost) => h.hashtag.tag),
     community: p.community
       ? { id: p.community.id, slug: p.community.slug, name: p.community.name }
       : null,

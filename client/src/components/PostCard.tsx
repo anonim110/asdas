@@ -31,6 +31,7 @@ import { PostComposer } from './PostComposer';
 import { UserName } from './UserName';
 import { GameStatus } from './GameStatus';
 import { PollView } from './PollView';
+import { TimeCapsule } from './TimeCapsule';
 import type { Conversation, Post, PostCounts, ViewerState, PostAnalytics } from '../types';
 
 interface Props {
@@ -64,6 +65,9 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const [analytics, setAnalytics] = useState<PostAnalytics | null>(null);
   const [shareMenu, setShareMenu] = useState(false);
+  // Filled when a sealed time capsule opens while on screen: the freshly
+  // fetched (unsealed) post replaces the stripped one.
+  const [unsealed, setUnsealed] = useState<Post | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
 
   const isOwner = me?.id === display.author.id;
@@ -240,7 +244,7 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
               {menuOpen && isOwner && <Dismiss onDismiss={() => setMenuOpen(false)} />}
               {menuOpen && isOwner && (
                 <div className="panel absolute right-0 z-10 mt-1 w-48 overflow-hidden py-1" onClick={(e) => e.stopPropagation()}>
-                  {!isRepost && (
+                  {!isRepost && !(unsealed ?? display).locked && (
                     <button
                       onClick={() => {
                         setMenuOpen(false);
@@ -277,17 +281,32 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
             </div>
           </div>
 
-          {content && (
-            <div className="mt-1 text-[15.5px] leading-6 text-slate-900 dark:text-slate-100">
-              <RichText text={content} />
-            </div>
+          {(unsealed ?? display).locked ? (
+            <TimeCapsule
+              post={display}
+              onUnsealed={(fresh) => {
+                setUnsealed(fresh);
+                setContent(fresh.content);
+                setCounts(fresh.counts);
+              }}
+            />
+          ) : (
+            <>
+              {content && (
+                <div className="mt-1 text-[15.5px] leading-6 text-slate-900 dark:text-slate-100">
+                  <RichText text={content} />
+                </div>
+              )}
+
+              <MediaGrid media={(unsealed ?? display).media} />
+
+              {(unsealed ?? display).poll && (
+                <PollView postId={display.id} poll={(unsealed ?? display).poll!} />
+              )}
+
+              {display.quotedPost && <QuoteEmbed post={display.quotedPost} />}
+            </>
           )}
-
-          <MediaGrid media={display.media} />
-
-          {display.poll && <PollView postId={display.id} poll={display.poll} />}
-
-          {display.quotedPost && <QuoteEmbed post={display.quotedPost} />}
 
           <div className="mt-3 flex max-w-md items-center justify-between text-slate-500 dark:text-slate-400">
             <button

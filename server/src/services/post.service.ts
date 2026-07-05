@@ -27,6 +27,7 @@ interface CreatePostArgs {
   quotedPostId?: string;
   communityId?: string;
   poll?: PollInput;
+  unlockAt?: Date;
 }
 
 // Validates poll input from the client (2-4 non-empty options, 1h-7d).
@@ -96,6 +97,7 @@ export async function createPost({
   quotedPostId,
   communityId,
   poll,
+  unlockAt,
 }: CreatePostArgs) {
   const trimmed = content?.trim() || undefined;
   if (!trimmed && (!media || media.length === 0)) {
@@ -108,10 +110,30 @@ export async function createPost({
     throw ApiError.badRequest('A post cannot have both a poll and media');
   }
 
+  // Time capsules: top-level text/media posts that stay sealed until a
+  // future date. Replies, quotes and polls can't be capsules, and the
+  // window is bounded so a capsule always opens within a year.
+  if (unlockAt) {
+    if (parentId || quotedPostId) {
+      throw ApiError.badRequest('Replies and quotes cannot be time capsules');
+    }
+    if (validPoll) throw ApiError.badRequest('A time capsule cannot contain a poll');
+    const ms = unlockAt.getTime() - Date.now();
+    if (Number.isNaN(ms) || ms < 60 * 1000) {
+      throw ApiError.badRequest('A time capsule must open at least a minute in the future');
+    }
+    if (ms > 366 * 24 * 60 * 60 * 1000) {
+      throw ApiError.badRequest('A time capsule can be sealed for at most one year');
+    }
+  }
+
   // Validate referenced posts exist.
   if (parentId) {
     const parent = await prisma.post.findUnique({ where: { id: parentId } });
     if (!parent) throw ApiError.notFound('Parent post not found');
+    if (parent.unlockAt && parent.unlockAt.getTime() > Date.now()) {
+      throw ApiError.badRequest('This time capsule is still sealed');
+    }
   }
   if (quotedPostId) {
     const quoted = await prisma.post.findUnique({ where: { id: quotedPostId } });
@@ -130,6 +152,7 @@ export async function createPost({
       parentId,
       quotedPostId,
       communityId,
+      unlockAt,
       media: media?.length
         ? { create: media.map((m) => ({ url: m.url, type: m.type, width: m.width, height: m.height })) }
         : undefined,
@@ -145,7 +168,9 @@ export async function createPost({
     include: postInclude(authorId),
   });
 
-  if (trimmed) await syncHashtagsAndMentions(post.id, trimmed, authorId);
+  // Sealed capsules skip hashtag/mention indexing: a mention notification or
+  // a hashtag page hit would leak the hidden text before it opens.
+  if (trimmed && !unlockAt) await syncHashtagsAndMentions(post.id, trimmed, authorId);
 
   // Notify on reply / quote.
   if (parentId) {
@@ -257,11 +282,14 @@ export async function deletePost(id: string, userId: string) {
 export async function updatePost(id: string, userId: string, content: string) {
   const post = await prisma.post.findUnique({
     where: { id },
-    select: { authorId: true, repostOfId: true, media: { select: { id: true } } },
+    select: { authorId: true, repostOfId: true, unlockAt: true, media: { select: { id: true } } },
   });
   if (!post) throw ApiError.notFound('Post not found');
   if (post.authorId !== userId) throw ApiError.forbidden('You can only edit your own posts');
   if (post.repostOfId) throw ApiError.badRequest('Reposts cannot be edited');
+  if (post.unlockAt && post.unlockAt.getTime() > Date.now()) {
+    throw ApiError.badRequest('A sealed time capsule cannot be edited');
+  }
 
   const trimmed = content?.trim();
   if (!trimmed && post.media.length === 0) throw ApiError.badRequest('Post cannot be empty');

@@ -138,6 +138,9 @@ model Post {
   author    User     @relation("AuthorPosts", fields: [authorId], references: [id], onDelete: Cascade)
   viewCount Int      @default(0)
   editedAt  DateTime?
+  // Time capsule: content/media stay hidden from everyone (author included)
+  // until this moment, enforced at serialization time. Null = normal post.
+  unlockAt  DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

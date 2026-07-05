@@ -413,3 +413,57 @@ button {
     opacity: 1;
   }
 }
+
+/* ───────────────── Time capsule (sealed posts) ─────────────────
+   A sealed post renders as a glowing capsule with a drifting light sweep,
+   a gently floating lock, and a burst when the countdown hits zero. */
+
+.capsule-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.28) 50%, transparent 70%);
+  transform: translateX(-130%);
+  animation: capsule-sweep 3.2s ease-in-out infinite;
+}
+.dark .capsule-shimmer::after {
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.12) 50%, transparent 70%);
+}
+@keyframes capsule-sweep {
+  0%,
+  55% {
+    transform: translateX(-130%);
+  }
+  100% {
+    transform: translateX(130%);
+  }
+}
+
+.capsule-float {
+  animation: capsule-float 2.6s ease-in-out infinite;
+}
+@keyframes capsule-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-3deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(3deg);
+  }
+}
+
+/* Countdown over → the capsule flashes and swells while the post loads. */
+.capsule-open {
+  animation: capsule-open 0.9s ease-in-out infinite alternate;
+}
+@keyframes capsule-open {
+  from {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.35);
+  }
+  to {
+    transform: scale(1.02);
+    box-shadow: 0 0 34px 4px rgba(139, 92, 246, 0.45);
+  }
+}

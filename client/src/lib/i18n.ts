@@ -183,6 +183,19 @@ const en = {
   rateSiteSaving: 'Saving…',
   rateSiteThanks: 'Thanks for your feedback!',
   rateSiteAvg: 'Average',
+
+  // Time capsule posts
+  capsuleTitle: 'Time capsule',
+  capsuleHint: 'Seal this post until a chosen date. Nobody — not even you — can open it early.',
+  capsuleOpensAt: 'Opens',
+  capsuleOpening: 'Opening…',
+  capsuleCustom: 'Custom date',
+  days30: '1 month',
+  year1: '1 year',
+  uDay: 'd',
+  uHour: 'h',
+  uMin: 'm',
+  uSec: 's',
 };
 
 type Key = keyof typeof en;
@@ -345,6 +358,18 @@ const ru: Record<Key, string> = {
   rateSiteSaving: 'Сохраняем…',
   rateSiteThanks: 'Спасибо за отзыв!',
   rateSiteAvg: 'Средняя',
+
+  capsuleTitle: 'Капсула времени',
+  capsuleHint: 'Запечатайте пост до выбранной даты. Никто — даже вы — не откроет его раньше.',
+  capsuleOpensAt: 'Откроется',
+  capsuleOpening: 'Открывается…',
+  capsuleCustom: 'Своя дата',
+  days30: '1 месяц',
+  year1: '1 год',
+  uDay: 'д',
+  uHour: 'ч',
+  uMin: 'м',
+  uSec: 'с',
 };
 
 const uk: Record<Key, string> = {
@@ -505,6 +530,18 @@ const uk: Record<Key, string> = {
   rateSiteSaving: 'Зберігаємо…',
   rateSiteThanks: 'Дякуємо за відгук!',
   rateSiteAvg: 'Середня',
+
+  capsuleTitle: 'Капсула часу',
+  capsuleHint: 'Запечатайте допис до обраної дати. Ніхто — навіть ви — не відкриє його раніше.',
+  capsuleOpensAt: 'Відкриється',
+  capsuleOpening: 'Відкривається…',
+  capsuleCustom: 'Власна дата',
+  days30: '1 місяць',
+  year1: '1 рік',
+  uDay: 'д',
+  uHour: 'год',
+  uMin: 'хв',
+  uSec: 'с',
 };
 
 const es: Record<Key, string> = {
@@ -665,6 +702,18 @@ const es: Record<Key, string> = {
   rateSiteSaving: 'Guardando…',
   rateSiteThanks: '¡Gracias por tu opinión!',
   rateSiteAvg: 'Media',
+
+  capsuleTitle: 'Cápsula del tiempo',
+  capsuleHint: 'Sella esta publicación hasta la fecha elegida. Nadie — ni siquiera tú — puede abrirla antes.',
+  capsuleOpensAt: 'Se abre',
+  capsuleOpening: 'Abriendo…',
+  capsuleCustom: 'Fecha personalizada',
+  days30: '1 mes',
+  year1: '1 año',
+  uDay: 'd',
+  uHour: 'h',
+  uMin: 'm',
+  uSec: 's',
 };
 
 const translations: Record<Locale, Record<Key, string>> = { en, ru, uk, es };

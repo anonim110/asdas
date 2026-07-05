@@ -81,6 +81,10 @@ export interface Post {
   quotedPost: Post | null;
   poll?: Poll | null;
   pinned?: boolean;
+  // Time capsule: while `locked` is true the server strips content/media;
+  // `unlockAt` is when the post unseals.
+  locked?: boolean;
+  unlockAt?: string | null;
 }
 
 export interface Relationship {

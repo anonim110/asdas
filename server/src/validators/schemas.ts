@@ -64,6 +64,8 @@ export const createPostSchema = z.object({
   // Optional attached poll as a JSON string ({ options, durationHours });
   // parsed by the controller and validated in the service.
   poll: z.string().max(1000).optional(),
+  // Time capsule: ISO date the post unseals at (range checked in the service).
+  unlockAt: z.string().datetime({ offset: true }).optional(),
 });
 
 export const votePollSchema = z.object({

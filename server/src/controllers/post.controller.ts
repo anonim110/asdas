@@ -41,6 +41,7 @@ export async function create(req: Request, res: Response) {
     communityId: req.body.communityId || undefined,
     media,
     poll: parsePollField(req.body.poll),
+    unlockAt: req.body.unlockAt ? new Date(req.body.unlockAt) : undefined,
   });
   res.status(201).json({ post });
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ImagePlus, X, Smile, ListTodo, Plus } from 'lucide-react';
+import { ImagePlus, X, Smile, ListTodo, Plus, Hourglass } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api, errorMessage } from '../lib/api';
 import { useAuth } from '../store/auth';
@@ -63,6 +63,9 @@ export function PostComposer({
   const [activeSuggestion, setActiveSuggestion] = useState(0);
   const [pollOptions, setPollOptions] = useState<string[] | null>(null); // null = no poll
   const [pollHours, setPollHours] = useState(24);
+  // Time capsule: ISO timestamp the post stays sealed until (null = normal post).
+  const [capsuleUntil, setCapsuleUntil] = useState<Date | null>(null);
+  const [capsuleMenu, setCapsuleMenu] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -79,6 +82,14 @@ export function PostComposer({
     }, 400);
     return () => clearTimeout(timer);
   }, [text, isDraftable]);
+
+  const CAPSULE_DURATIONS: Array<[label: string, hours: number]> = [
+    [t('hour1'), 1],
+    [t('day1'), 24],
+    [t('days7'), 168],
+    [t('days30'), 720],
+    [t('year1'), 8760],
+  ];
 
   const POLL_DURATIONS: Array<[label: string, hours: number]> = [
     [t('hour1'), 1],
@@ -141,6 +152,7 @@ export function PostComposer({
   const remaining = MAX - text.length;
   const overLimit = remaining < 0;
   const pollActive = pollOptions !== null;
+  const capsuleAllowed = !parentId && !quotedPostId;
   const pollReady = !pollActive || pollOptions.filter((o) => o.trim()).length >= 2;
   const canSubmit =
     (text.trim().length > 0 || files.length > 0) &&
@@ -180,6 +192,7 @@ export function PostComposer({
           JSON.stringify({ options: pollOptions.map((o) => o.trim()).filter(Boolean), durationHours: pollHours }),
         );
       }
+      if (capsuleUntil && capsuleAllowed) form.append('unlockAt', capsuleUntil.toISOString());
       files.forEach((f) => form.append('media', f.file));
 
       const { data } = await api.post<{ post: Post }>('/posts', form, {
@@ -191,6 +204,8 @@ export function PostComposer({
       setToken(null);
       setSuggestions([]);
       setPollOptions(null);
+      setCapsuleUntil(null);
+      setCapsuleMenu(false);
       if (isDraftable) {
         try {
           localStorage.removeItem(DRAFT_KEY);
@@ -319,6 +334,64 @@ export function PostComposer({
           </div>
         )}
 
+        {capsuleUntil && (
+          <div className="mb-2 flex animate-scale-in items-center gap-2 rounded-2xl border border-violet-300/60 bg-violet-50/70 px-3 py-2 text-sm font-medium text-violet-700 dark:border-violet-400/25 dark:bg-violet-500/10 dark:text-violet-300">
+            <Hourglass size={15} className="shrink-0" />
+            <span className="min-w-0 flex-1 truncate">
+              {t('capsuleOpensAt')}{' '}
+              {capsuleUntil.toLocaleString(undefined, {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCapsuleUntil(null)}
+              className="icon-button min-h-8 min-w-8"
+              aria-label="Remove time capsule"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        {capsuleMenu && (
+          <div className="mb-3 animate-scale-in rounded-2xl border border-violet-300/50 p-3 dark:border-violet-400/20">
+            <p className="mb-2 text-sm text-slate-500 dark:text-slate-400">{t('capsuleHint')}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              {CAPSULE_DURATIONS.map(([label, hours]) => (
+                <button
+                  key={hours}
+                  type="button"
+                  onClick={() => {
+                    setCapsuleUntil(new Date(Date.now() + hours * 60 * 60 * 1000));
+                    setCapsuleMenu(false);
+                  }}
+                  className="rounded-full bg-violet-100 px-3.5 py-1.5 text-sm font-bold text-violet-700 transition hover:bg-violet-200 dark:bg-violet-500/15 dark:text-violet-300 dark:hover:bg-violet-500/25"
+                >
+                  {label}
+                </button>
+              ))}
+              <input
+                type="datetime-local"
+                aria-label={t('capsuleCustom')}
+                min={new Date(Date.now() + 5 * 60 * 1000).toISOString().slice(0, 16)}
+                onChange={(e) => {
+                  const picked = e.target.value ? new Date(e.target.value) : null;
+                  if (picked && picked.getTime() > Date.now()) {
+                    setCapsuleUntil(picked);
+                    setCapsuleMenu(false);
+                  }
+                }}
+                className="input min-h-9 w-auto rounded-xl py-1 text-sm"
+              />
+            </div>
+          </div>
+        )}
+
         {error && <p className="mb-2 rounded-2xl bg-red-50 px-3 py-2 text-sm font-medium text-red-600 dark:bg-red-500/10 dark:text-red-300">{error}</p>}
 
         <div className="flex items-center justify-between border-t border-slate-100 pt-3 dark:border-white/10">
@@ -336,7 +409,7 @@ export function PostComposer({
             <button
               type="button"
               onClick={() => setPollOptions((cur) => (cur === null ? ['', ''] : null))}
-              disabled={files.length > 0}
+              disabled={files.length > 0 || capsuleUntil !== null || capsuleMenu}
               className={`icon-button disabled:cursor-not-allowed disabled:opacity-40 ${
                 pollActive ? 'bg-brand/10 text-brand' : 'text-brand'
               }`}
@@ -345,6 +418,27 @@ export function PostComposer({
             >
               <ListTodo size={20} />
             </button>
+            {capsuleAllowed && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (capsuleUntil) {
+                    setCapsuleUntil(null);
+                    setCapsuleMenu(false);
+                  } else {
+                    setCapsuleMenu((o) => !o);
+                  }
+                }}
+                disabled={pollActive}
+                className={`icon-button disabled:cursor-not-allowed disabled:opacity-40 ${
+                  capsuleUntil || capsuleMenu ? 'bg-violet-500/10 text-violet-600 dark:text-violet-300' : 'text-brand'
+                }`}
+                title={t('capsuleTitle')}
+                aria-label={t('capsuleTitle')}
+              >
+                <Hourglass size={20} />
+              </button>
+            )}
             <div className="relative">
               <button
                 type="button"
