@@ -18,6 +18,7 @@ import {
 } from '../lib/desktop';
 import { openMediaSettings } from '../lib/mediaAccess';
 import { PageHeader } from '../components/PageHeader';
+import { SiteRatingCard } from '../components/SiteRatingCard';
 import type { AuthUser, Session } from '../types';
 
 export function Settings() {
@@ -339,6 +340,8 @@ export function Settings() {
           </p>
         </section>
       )}
+
+      <SiteRatingCard />
 
       <ChangePassword />
 

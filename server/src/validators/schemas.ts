@@ -124,6 +124,13 @@ export const communityMessageSchema = z.object({
   content: z.string().min(1, 'Message cannot be empty').max(2000),
 });
 
+// ───────────────── Site feedback ─────────────────
+
+export const siteRatingSchema = z.object({
+  score: z.coerce.number().int().min(1, 'Score must be 1-10').max(10, 'Score must be 1-10'),
+  comment: z.string().trim().max(500, 'Comment is too long').optional(),
+});
+
 // ───────────────── Pagination / queries ─────────────────
 
 export const cursorQuerySchema = z.object({

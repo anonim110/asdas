@@ -78,6 +78,9 @@ model User {
   stories    Story[]     @relation("AuthorStories")
   storyViews StoryView[] @relation("StoryViews")
 
+  // Site feedback (emoji-slider rating)
+  siteRating SiteRating? @relation("SiteRatingUser")
+
   @@index([username])
 }
 
@@ -470,4 +473,20 @@ model CommunityMessage {
   createdAt   DateTime  @default(now())
 
   @@index([communityId, createdAt])
+}
+
+// ──────────────────── Site feedback ────────────────────
+
+// A user's rating of the site itself (the emoji-slider feedback widget in
+// Settings). One row per user — re-submitting updates the existing rating.
+model SiteRating {
+  id      String  @id @default(cuid())
+  userId  String  @unique
+  user    User    @relation("SiteRatingUser", fields: [userId], references: [id], onDelete: Cascade)
+  // 1 (terrible) … 10 (amazing); range enforced by validation.
+  score   Int
+  comment String? // optional free-form note, max length enforced by validation
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

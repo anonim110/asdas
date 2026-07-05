@@ -169,6 +169,20 @@ const en = {
   // Settings
   language: 'Language',
   languageDesc: 'Interface language. Applies instantly.',
+
+  // Site rating (emoji slider feedback)
+  rateSiteTitle: 'Rate Murmur',
+  rateSiteDesc: 'How do you like the site? Drag the slider — the emoji reacts.',
+  rateMood1: 'Awful',
+  rateMood2: 'Not great',
+  rateMood3: 'Okay',
+  rateMood4: 'Good',
+  rateMood5: 'Love it!',
+  rateSiteCommentPh: 'Tell us what to improve (optional)',
+  rateSiteSubmit: 'Submit rating',
+  rateSiteSaving: 'Saving…',
+  rateSiteThanks: 'Thanks for your feedback!',
+  rateSiteAvg: 'Average',
 };
 
 type Key = keyof typeof en;
@@ -318,6 +332,19 @@ const ru: Record<Key, string> = {
 
   language: 'Язык',
   languageDesc: 'Язык интерфейса. Применяется сразу.',
+
+  rateSiteTitle: 'Оцените Murmur',
+  rateSiteDesc: 'Насколько вам нравится сайт? Двигайте ползунок — смайлик реагирует.',
+  rateMood1: 'Ужасно',
+  rateMood2: 'Так себе',
+  rateMood3: 'Нормально',
+  rateMood4: 'Хорошо',
+  rateMood5: 'Восторг!',
+  rateSiteCommentPh: 'Расскажите, что улучшить (необязательно)',
+  rateSiteSubmit: 'Отправить оценку',
+  rateSiteSaving: 'Сохраняем…',
+  rateSiteThanks: 'Спасибо за отзыв!',
+  rateSiteAvg: 'Средняя',
 };
 
 const uk: Record<Key, string> = {
@@ -465,6 +492,19 @@ const uk: Record<Key, string> = {
 
   language: 'Мова',
   languageDesc: 'Мова інтерфейсу. Застосовується одразу.',
+
+  rateSiteTitle: 'Оцініть Murmur',
+  rateSiteDesc: 'Наскільки вам подобається сайт? Рухайте повзунок — смайлик реагує.',
+  rateMood1: 'Жахливо',
+  rateMood2: 'Так собі',
+  rateMood3: 'Нормально',
+  rateMood4: 'Добре',
+  rateMood5: 'Захват!',
+  rateSiteCommentPh: 'Розкажіть, що покращити (необовʼязково)',
+  rateSiteSubmit: 'Надіслати оцінку',
+  rateSiteSaving: 'Зберігаємо…',
+  rateSiteThanks: 'Дякуємо за відгук!',
+  rateSiteAvg: 'Середня',
 };
 
 const es: Record<Key, string> = {
@@ -612,6 +652,19 @@ const es: Record<Key, string> = {
 
   language: 'Idioma',
   languageDesc: 'Idioma de la interfaz. Se aplica al instante.',
+
+  rateSiteTitle: 'Valora Murmur',
+  rateSiteDesc: '¿Qué te parece el sitio? Mueve el control — el emoji reacciona.',
+  rateMood1: 'Horrible',
+  rateMood2: 'Regular',
+  rateMood3: 'Normal',
+  rateMood4: 'Bien',
+  rateMood5: '¡Me encanta!',
+  rateSiteCommentPh: 'Cuéntanos qué mejorar (opcional)',
+  rateSiteSubmit: 'Enviar valoración',
+  rateSiteSaving: 'Guardando…',
+  rateSiteThanks: '¡Gracias por tu opinión!',
+  rateSiteAvg: 'Media',
 };
 
 const translations: Record<Locale, Record<Key, string>> = { en, ru, uk, es };
