@@ -113,7 +113,14 @@ export interface Profile {
   relationship: Relationship;
 }
 
-export type NotificationType = 'LIKE' | 'REPOST' | 'QUOTE' | 'FOLLOW' | 'MENTION' | 'REPLY';
+export type NotificationType =
+  | 'LIKE'
+  | 'REPOST'
+  | 'QUOTE'
+  | 'FOLLOW'
+  | 'MENTION'
+  | 'REPLY'
+  | 'CAPSULE_OPENED';
 
 export interface Notification {
   id: string;

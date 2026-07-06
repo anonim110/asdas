@@ -3,6 +3,7 @@ import { createApp } from './app';
 import { env } from './config/env';
 import { initSockets } from './sockets';
 import { prisma } from './config/prisma';
+import { startCapsuleWorker } from './services/capsule.service';
 
 async function main() {
   const app = createApp();
@@ -10,6 +11,9 @@ async function main() {
 
   // Attach Socket.io for realtime notifications and direct messages.
   initSockets(server);
+
+  // Background job that fires "time capsule opened" side-effects.
+  startCapsuleWorker();
 
   server.listen(env.port, () => {
     // eslint-disable-next-line no-console

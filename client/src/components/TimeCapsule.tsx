@@ -61,8 +61,25 @@ export function TimeCapsule({ post, onUnsealed }: { post: Post; onUnsealed: (fre
         opening ? 'capsule-open' : ''
       }`}
     >
-      <div className="capsule-float mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/40">
-        {opening ? <Sparkles size={26} /> : <Lock size={24} />}
+      <div className="relative mx-auto h-14 w-14">
+        <div className="capsule-float flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/40">
+          {opening ? <Sparkles size={26} /> : <Lock size={24} />}
+        </div>
+        {/* Confetti burst while the capsule opens */}
+        {opening &&
+          Array.from({ length: 12 }, (_, i) => (
+            <span
+              key={i}
+              style={
+                {
+                  '--angle': `${i * 30}deg`,
+                  animationDelay: `${(i % 4) * 0.12}s`,
+                  background: ['#8b5cf6', '#f472b6', '#22d3ee', '#facc15'][i % 4],
+                } as React.CSSProperties
+              }
+              className="capsule-confetti pointer-events-none absolute inset-0 m-auto h-2 w-2 rounded-sm"
+            />
+          ))}
       </div>
 
       <p className="mt-3 flex items-center justify-center gap-1.5 text-sm font-bold text-violet-700 dark:text-violet-300">

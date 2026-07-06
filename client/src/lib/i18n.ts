@@ -196,6 +196,13 @@ const en = {
   uHour: 'h',
   uMin: 'm',
   uSec: 's',
+  navCapsules: 'Capsules',
+  capsuleOpenedNotif: 'sealed a time capsule — it just opened! 🎉',
+  capsulesPending: 'Waiting to open',
+  capsulesOpenedSection: 'Already opened',
+  capsulesWatching: 'You are watching',
+  capsulesEmpty: 'No time capsules yet',
+  capsulesEmptySub: 'Seal a post with the hourglass button in the composer — it will wait here until it opens.',
 };
 
 type Key = keyof typeof en;
@@ -370,6 +377,13 @@ const ru: Record<Key, string> = {
   uHour: 'ч',
   uMin: 'м',
   uSec: 'с',
+  navCapsules: 'Капсулы',
+  capsuleOpenedNotif: 'запечатал(а) капсулу времени — она только что открылась! 🎉',
+  capsulesPending: 'Ждут вскрытия',
+  capsulesOpenedSection: 'Уже открыты',
+  capsulesWatching: 'Вы наблюдаете',
+  capsulesEmpty: 'Капсул времени пока нет',
+  capsulesEmptySub: 'Запечатайте пост кнопкой с песочными часами в редакторе — он будет ждать здесь до вскрытия.',
 };
 
 const uk: Record<Key, string> = {
@@ -542,6 +556,13 @@ const uk: Record<Key, string> = {
   uHour: 'год',
   uMin: 'хв',
   uSec: 'с',
+  navCapsules: 'Капсули',
+  capsuleOpenedNotif: 'запечатав(-ла) капсулу часу — вона щойно відкрилася! 🎉',
+  capsulesPending: 'Чекають відкриття',
+  capsulesOpenedSection: 'Вже відкриті',
+  capsulesWatching: 'Ви стежите',
+  capsulesEmpty: 'Капсул часу поки немає',
+  capsulesEmptySub: 'Запечатайте допис кнопкою з пісковим годинником у редакторі — він чекатиме тут до відкриття.',
 };
 
 const es: Record<Key, string> = {
@@ -714,6 +735,13 @@ const es: Record<Key, string> = {
   uHour: 'h',
   uMin: 'm',
   uSec: 's',
+  navCapsules: 'Cápsulas',
+  capsuleOpenedNotif: 'selló una cápsula del tiempo: ¡acaba de abrirse! 🎉',
+  capsulesPending: 'Esperando a abrirse',
+  capsulesOpenedSection: 'Ya abiertas',
+  capsulesWatching: 'Estás siguiendo',
+  capsulesEmpty: 'Aún no hay cápsulas del tiempo',
+  capsulesEmptySub: 'Sella una publicación con el botón del reloj de arena: esperará aquí hasta abrirse.',
 };
 
 const translations: Record<Locale, Record<Key, string>> = { en, ru, uk, es };

@@ -48,7 +48,7 @@ function validatePoll(poll: PollInput): { options: string[]; durationHours: numb
 
 // Links hashtags and mentions found in `content` to the post, and notifies
 // mentioned users. Runs after the post row exists.
-async function syncHashtagsAndMentions(
+export async function syncHashtagsAndMentions(
   postId: string,
   content: string,
   authorId: string,

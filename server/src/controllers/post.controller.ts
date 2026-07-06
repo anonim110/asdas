@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import * as postService from '../services/post.service';
+import * as capsuleService from '../services/capsule.service';
 import { MediaType } from '../types/enums';
 import { storeUploadedFile } from '../middleware/upload';
 import type { MediaInput } from '../services/post.service';
@@ -44,6 +45,11 @@ export async function create(req: Request, res: Response) {
     unlockAt: req.body.unlockAt ? new Date(req.body.unlockAt) : undefined,
   });
   res.status(201).json({ post });
+}
+
+export async function listCapsules(req: Request, res: Response) {
+  const result = await capsuleService.listCapsules(req.userId!);
+  res.json(result);
 }
 
 export async function votePoll(req: Request, res: Response) {

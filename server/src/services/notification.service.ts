@@ -20,12 +20,15 @@ interface CreateArgs {
   recipientId: string;
   actorId: string;
   postId?: string;
+  // Capsule-opened pings the author about their own post, so the
+  // self-notification guard can be bypassed explicitly.
+  allowSelf?: boolean;
 }
 
 // Creates a notification and pushes it in realtime to the recipient.
 // Self-notifications (acting on your own content) are skipped.
-export async function createNotification({ type, recipientId, actorId, postId }: CreateArgs) {
-  if (recipientId === actorId) return null;
+export async function createNotification({ type, recipientId, actorId, postId, allowSelf }: CreateArgs) {
+  if (recipientId === actorId && !allowSelf) return null;
 
   const notification = await prisma.notification.create({
     data: { type, recipientId, actorId, postId },

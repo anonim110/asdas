@@ -10,4 +10,5 @@ export type NotificationType =
   | 'QUOTE'
   | 'FOLLOW'
   | 'MENTION'
-  | 'REPLY';
+  | 'REPLY'
+  | 'CAPSULE_OPENED';

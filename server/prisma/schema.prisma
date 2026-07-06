@@ -140,7 +140,10 @@ model Post {
   editedAt  DateTime?
   // Time capsule: content/media stay hidden from everyone (author included)
   // until this moment, enforced at serialization time. Null = normal post.
-  unlockAt  DateTime?
+  unlockAt       DateTime?
+  // Set by the capsule worker once opening side-effects (notifications,
+  // deferred hashtag/mention indexing) have run.
+  unlockNotified Boolean   @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -181,6 +184,7 @@ model Post {
   @@index([quotedPostId])
   @@index([communityId, createdAt])
   @@index([createdAt])
+  @@index([unlockAt])
 }
 
 model Media {

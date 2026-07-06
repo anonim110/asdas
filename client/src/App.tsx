@@ -18,6 +18,7 @@ import { Settings } from './pages/Settings';
 import { Notifications } from './pages/Notifications';
 import { Messages } from './pages/Messages';
 import { Bookmarks } from './pages/Bookmarks';
+import { Capsules } from './pages/Capsules';
 import { Search } from './pages/Search';
 import { Hashtag } from './pages/Hashtag';
 import { NotFound } from './pages/NotFound';
@@ -49,6 +50,7 @@ export default function App() {
             <Route path="/home" element={<Home />} />
             <Route path="/explore" element={<Explore />} />
             <Route path="/bookmarks" element={<Bookmarks />} />
+            <Route path="/capsules" element={<Capsules />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/messages/:id" element={<Messages />} />

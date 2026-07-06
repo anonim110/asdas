@@ -19,6 +19,7 @@ function describeNotification(n: Notif): { body: string; navigateTo: string } {
     REPLY: 'replied to your post',
     MENTION: 'mentioned you',
     FOLLOW: 'started following you',
+    CAPSULE_OPENED: 'time capsule just opened! 🎉',
   };
   const navigateTo =
     n.type === 'FOLLOW'

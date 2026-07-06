@@ -21,6 +21,7 @@ router.post(
 
 // Static paths must precede the `/:id` matcher.
 router.get('/bookmarks', requireAuth, validate({ query: cursorQuerySchema }), asyncHandler(post.listBookmarks));
+router.get('/capsules', requireAuth, asyncHandler(post.listCapsules));
 
 router.get('/:id', optionalAuth, asyncHandler(post.getOne));
 router.get('/:id/thread', optionalAuth, asyncHandler(post.getThread));

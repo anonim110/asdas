@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { Heart, Repeat2, UserPlus, AtSign, MessageCircle, Quote, Bell } from 'lucide-react';
+import { Heart, Repeat2, UserPlus, AtSign, MessageCircle, Quote, Bell, Hourglass } from 'lucide-react';
 import { api } from '../lib/api';
 import { useRealtime } from '../store/realtime';
 import { useT, type TranslationKey } from '../lib/i18n';
@@ -21,6 +21,7 @@ const ICONS: Record<NotificationType, { icon: typeof Heart; color: string }> = {
   FOLLOW: { icon: UserPlus, color: 'text-brand' },
   MENTION: { icon: AtSign, color: 'text-brand' },
   REPLY: { icon: MessageCircle, color: 'text-brand' },
+  CAPSULE_OPENED: { icon: Hourglass, color: 'text-violet-500' },
 };
 
 const VERB: Record<NotificationType, TranslationKey> = {
@@ -30,6 +31,7 @@ const VERB: Record<NotificationType, TranslationKey> = {
   FOLLOW: 'followedYou',
   MENTION: 'mentionedYou',
   REPLY: 'repliedToYourPost',
+  CAPSULE_OPENED: 'capsuleOpenedNotif',
 };
 
 type Filter = 'all' | 'mentions' | 'likes' | 'follows';

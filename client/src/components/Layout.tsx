@@ -14,6 +14,7 @@ import {
   Search,
   Gamepad2,
   Menu,
+  Hourglass,
 } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { useRealtime } from '../store/realtime';
@@ -96,6 +97,7 @@ export function Layout() {
     { to: '/notifications', label: t('navNotifications'), icon: Bell, badge: notifUnread },
     { to: '/messages', label: t('navMessages'), icon: Mail, badge: dmUnread },
     { to: '/bookmarks', label: t('navBookmarks'), icon: Bookmark },
+    { to: '/capsules', label: t('navCapsules'), icon: Hourglass },
     { to: `/${user.username}`, label: t('navProfile'), icon: User },
     { to: '/settings', label: t('navSettings'), icon: Settings },
   ];
@@ -283,6 +285,7 @@ export function Layout() {
             { to: `/${user.username}`, label: 'Profile', icon: User },
             { to: '/notifications', label: 'Notifications', icon: Bell, badge: notifUnread },
             { to: '/bookmarks', label: 'Bookmarks', icon: Bookmark },
+            { to: '/capsules', label: 'Capsules', icon: Hourglass },
             { to: '/settings', label: 'Settings', icon: Settings },
           ].map((item) => (
             <button
