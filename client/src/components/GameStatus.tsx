@@ -1,27 +1,6 @@
-import { Gamepad2 } from 'lucide-react';
-import { usePresence } from '../store/presence';
-
-// Small gamer-styled "playing now" chip, shown next to a user wherever they
-// appear (profile, chat header, feed). Renders nothing when no status is set.
-export function GameStatus({
-  status,
-  userId,
-  className = '',
-}: {
-  status?: string | null;
-  userId?: string;
-  className?: string;
-}) {
-  const liveStatus = usePresence((state) => (userId ? state.activities[userId] : null));
-  const visibleStatus = liveStatus || status;
-  if (!visibleStatus) return null;
-  return (
-    <span
-      className={`inline-flex max-w-full items-center gap-1 rounded-full bg-cyan-500/15 px-2 py-0.5 text-xs font-semibold text-cyan-700 ring-1 ring-cyan-400/30 dark:bg-cyan-400/10 dark:text-cyan-300 ${className}`}
-      title={`Playing ${visibleStatus}`}
-    >
-      <Gamepad2 size={12} className="shrink-0" />
-      <span className="truncate">{visibleStatus}</span>
-    </span>
-  );
+// Gaming presence was intentionally removed from the public social UI.
+// Keep this compatibility component temporarily so older imports do not break
+// while the related backend fields are phased out safely.
+export function GameStatus() {
+  return null;
 }
