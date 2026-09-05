@@ -3,7 +3,6 @@ import { useT } from '../lib/i18n';
 import { api } from '../lib/api';
 import { PageHeader } from '../components/PageHeader';
 import { PostComposer } from '../components/PostComposer';
-import { StoriesBar } from '../components/StoriesBar';
 import { Feed } from '../components/Feed';
 import type { Post } from '../types';
 
@@ -16,17 +15,15 @@ export function Home() {
   return (
     <div>
       <PageHeader title={t('navHome')}>
-        <div className="flex">
+        <div className="flex gap-6 px-4">
           <TabButton active={tab === 'foryou'} onClick={() => setTab('foryou')} label={t('forYou')} />
           <TabButton active={tab === 'following'} onClick={() => setTab('following')} label={t('followingTab')} />
         </div>
       </PageHeader>
 
-      <StoriesBar />
-
-      <div className="card px-4 py-4">
+      <section className="border-b border-stone-300 bg-[#f7f4ec] px-4 py-4 dark:border-white/10 dark:bg-[#151512]">
         <PostComposer />
-      </div>
+      </section>
 
       {tab === 'foryou' ? (
         <Feed
@@ -64,10 +61,14 @@ function TabButton({ active, onClick, label }: { active: boolean; onClick: () =>
   return (
     <button
       onClick={onClick}
-      className="relative flex-1 py-4 text-center font-bold transition duration-200 hover:bg-violet-50 dark:hover:bg-white/[0.05]"
+      className={`relative py-3 text-sm font-extrabold uppercase tracking-[0.08em] transition-colors ${
+        active
+          ? 'text-stone-950 dark:text-stone-50'
+          : 'text-stone-500 hover:text-stone-900 dark:text-stone-500 dark:hover:text-stone-200'
+      }`}
     >
-      <span className={active ? 'text-slate-950 dark:text-white' : 'text-slate-500 dark:text-slate-400'}>{label}</span>
-      {active && <span className="absolute bottom-0 left-1/2 h-1 w-14 -translate-x-1/2 rounded-full bg-brand shadow-sm shadow-brand/30" />}
+      {label}
+      {active && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-brand" />}
     </button>
   );
 }
