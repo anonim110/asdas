@@ -5,21 +5,20 @@ interface Props {
   icon?: LucideIcon;
   title: string;
   subtitle?: string;
-  children?: ReactNode; // optional action (e.g. a button)
+  children?: ReactNode;
 }
 
-// Friendly, centered placeholder shown when a list/feed has no content.
 export function EmptyState({ icon: Icon, title, subtitle, children }: Props) {
   return (
-    <div className="animate-page-enter flex flex-col items-center justify-center px-6 py-16 text-center">
-      {Icon && (
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-lg border border-violet-100 bg-violet-50 text-brand shadow-sm dark:border-white/10 dark:bg-white/[0.06]">
-          <Icon size={30} strokeWidth={1.75} />
+    <div className="animate-page-enter border-t-2 border-stone-950 px-5 py-9 text-left dark:border-stone-100">
+      <div className="flex items-start gap-4">
+        {Icon && <Icon size={24} strokeWidth={1.8} className="mt-0.5 shrink-0 text-brand" />}
+        <div className="min-w-0">
+          <h3 className="text-lg font-black tracking-[-0.02em] text-stone-950 dark:text-white">{title}</h3>
+          {subtitle && <p className="mt-1 max-w-md text-sm leading-6 text-stone-500">{subtitle}</p>}
+          {children && <div className="mt-4">{children}</div>}
         </div>
-      )}
-      <h3 className="text-lg font-extrabold text-slate-950 dark:text-white">{title}</h3>
-      {subtitle && <p className="mt-1 max-w-xs text-sm leading-6 text-slate-500 dark:text-slate-400">{subtitle}</p>}
-      {children && <div className="mt-5">{children}</div>}
+      </div>
     </div>
   );
 }
