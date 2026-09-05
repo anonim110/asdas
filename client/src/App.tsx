@@ -21,13 +21,10 @@ import { Bookmarks } from './pages/Bookmarks';
 import { Search } from './pages/Search';
 import { Hashtag } from './pages/Hashtag';
 import { NotFound } from './pages/NotFound';
-import { Communities } from './pages/Communities';
-import { CommunityDetail } from './pages/CommunityDetail';
 
 export default function App() {
   const bootstrap = useAuth((s) => s.bootstrap);
 
-  // Attempt to silently restore the session on first load.
   useEffect(() => {
     bootstrap();
   }, [bootstrap]);
@@ -35,7 +32,6 @@ export default function App() {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
-        {/* Signed-out routes */}
         <Route element={<PublicOnly />}>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -43,7 +39,6 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
         </Route>
 
-        {/* Authenticated app shell */}
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
             <Route path="/home" element={<Home />} />
@@ -52,8 +47,6 @@ export default function App() {
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/messages" element={<Messages />} />
             <Route path="/messages/:id" element={<Messages />} />
-            <Route path="/communities" element={<Communities />} />
-            <Route path="/communities/:slug" element={<CommunityDetail />} />
             <Route path="/search" element={<Search />} />
             <Route path="/hashtag/:tag" element={<Hashtag />} />
             <Route path="/settings" element={<Settings />} />
