@@ -12,7 +12,6 @@ import {
   LogOut,
   MoreHorizontal,
   Search,
-  Gamepad2,
   Menu,
 } from 'lucide-react';
 import { useAuth } from '../store/auth';
@@ -27,8 +26,6 @@ import { ThemeToggle } from './ThemeToggle';
 import { RightSidebar } from './RightSidebar';
 import { ScrollToTop } from './ScrollToTop';
 import { RealtimeBridge } from './RealtimeBridge';
-import { DesktopActivityBridge } from './DesktopActivityBridge';
-import { CallOverlay } from './CallOverlay';
 import { QuickSearch } from './QuickSearch';
 import { UserName } from './UserName';
 
@@ -50,13 +47,10 @@ export function Layout() {
   const [menu, setMenu] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [quickSearch, setQuickSearch] = useState(false);
+
   const isMessagesRoute = location.pathname.startsWith('/messages');
   const isChatRoute = /^\/messages\/[^/]+/.test(location.pathname);
-  const isCommunityDetailRoute = /^\/communities\/[^/]+/.test(location.pathname);
-  // The Home feed already shows an inline composer, so the floating compose
-  // button there only overlaps post actions — hide it on Home.
-  const showMobileComposer =
-    !isChatRoute && !isCommunityDetailRoute && location.pathname !== '/home' && !isMessagesRoute;
+  const showMobileComposer = !isChatRoute && location.pathname !== '/home' && !isMessagesRoute;
 
   useEffect(() => {
     const openSearch = (event: KeyboardEvent) => {
@@ -65,6 +59,7 @@ export function Layout() {
         target?.tagName === 'INPUT' ||
         target?.tagName === 'TEXTAREA' ||
         target?.isContentEditable;
+
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         setQuickSearch(true);
@@ -73,16 +68,17 @@ export function Layout() {
         setQuickSearch(true);
       }
     };
+
     window.addEventListener('keydown', openSearch);
     return () => window.removeEventListener('keydown', openSearch);
   }, []);
 
-  // Deep-link from a clicked OS notification (fired by lib/notify).
   useEffect(() => {
     const onNavigate = (event: Event) => {
       const path = (event as CustomEvent<string>).detail;
       if (typeof path === 'string') navigate(path);
     };
+
     window.addEventListener('murmur:navigate', onNavigate);
     return () => window.removeEventListener('murmur:navigate', onNavigate);
   }, [navigate]);
@@ -92,7 +88,6 @@ export function Layout() {
   const items: NavItem[] = [
     { to: '/home', label: t('navHome'), icon: Home },
     { to: '/explore', label: t('navExplore'), icon: Hash },
-    { to: '/communities', label: t('navServers'), icon: Gamepad2 },
     { to: '/notifications', label: t('navNotifications'), icon: Bell, badge: notifUnread },
     { to: '/messages', label: t('navMessages'), icon: Mail, badge: dmUnread },
     { to: '/bookmarks', label: t('navBookmarks'), icon: Bookmark },
@@ -100,91 +95,98 @@ export function Layout() {
     { to: '/settings', label: t('navSettings'), icon: Settings },
   ];
 
-  return (
-    <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-[1400px] overflow-x-clip sm:px-3 xl:px-6">
-      <RealtimeBridge />
-      <DesktopActivityBridge />
-      <CallOverlay />
+  const mobileItems = items.filter((item) =>
+    ['/home', '/explore', '/notifications', '/messages'].includes(item.to),
+  );
 
-      {/* Left navigation (desktop) */}
-      <header className="sticky top-0 hidden h-screen shrink-0 flex-col justify-between px-2 py-4 lg:flex xl:w-[285px]">
-        <div className="flex flex-col items-center xl:items-start">
+  return (
+    <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-[1320px] overflow-x-clip">
+      <RealtimeBridge />
+
+      <header className="sticky top-0 hidden h-screen w-[78px] shrink-0 flex-col justify-between border-r border-stone-300 bg-[#eeeae0] px-2 py-4 dark:border-white/10 dark:bg-[#0d0d0b] lg:flex xl:w-[248px] xl:px-4">
+        <div>
           <NavLink
             to="/home"
-            className="mb-3 flex min-h-12 items-center gap-3 rounded-full p-2.5 text-brand transition duration-200 hover:bg-white/80 hover:shadow-soft active:scale-95 dark:hover:bg-white/[0.06]"
+            className="mb-5 flex h-11 items-center gap-3 px-2 text-stone-950 dark:text-stone-50"
             aria-label="Murmur home"
           >
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand via-fuchsia-500 to-accent text-white shadow-lift">
-              <Feather size={23} />
+            <span className="flex h-8 w-8 items-center justify-center bg-brand text-white">
+              <Feather size={18} strokeWidth={2.4} />
             </span>
-            <span className="hidden bg-gradient-to-r from-brand via-fuchsia-400 to-accent bg-clip-text text-2xl font-extrabold text-transparent xl:inline">
-              Murmur
-            </span>
+            <span className="hidden text-2xl font-black tracking-[-0.055em] xl:inline">Murmur</span>
           </NavLink>
 
-          <nav className="flex w-full flex-col gap-1">
+          <nav className="flex flex-col gap-0.5">
             {items.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `group flex min-h-12 items-center gap-4 rounded-2xl px-3 py-2.5 text-lg transition duration-200 xl:w-full ${
+                  `group relative flex min-h-12 items-center gap-3 border-l-2 px-3 py-2.5 text-[15px] transition-colors xl:w-full ${
                     isActive
-                      ? 'bg-gradient-to-r from-brand/15 via-fuchsia-500/10 to-accent/10 font-extrabold text-brand shadow-sm ring-1 ring-brand/20 dark:text-violet-300 dark:ring-violet-400/25'
-                      : 'text-slate-700 hover:bg-white/75 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white'
+                      ? 'border-brand font-black text-stone-950 dark:text-white'
+                      : 'border-transparent font-semibold text-stone-600 hover:border-stone-400 hover:text-stone-950 dark:text-stone-400 dark:hover:border-stone-600 dark:hover:text-white'
                   }`
                 }
               >
-                <span className="relative transition duration-200 group-active:scale-90">
-                  <item.icon size={25} strokeWidth={2.2} />
+                <span className="relative shrink-0">
+                  <item.icon size={22} strokeWidth={2.1} />
                   {!!item.badge && item.badge > 0 && (
-                    <span className="absolute -right-2 -top-1 min-w-[18px] rounded-full bg-accent px-1 text-center text-xs font-bold text-white shadow-sm">
+                    <span className="absolute -right-2 -top-2 min-w-[17px] bg-brand px-1 text-center text-[10px] font-black leading-[17px] text-white">
                       {item.badge > 99 ? '99+' : item.badge}
                     </span>
                   )}
                 </span>
-                <span className="hidden xl:inline">{item.label}</span>
+                <span className="hidden truncate xl:inline">{item.label}</span>
               </NavLink>
             ))}
+
             <button
+              type="button"
               onClick={() => setQuickSearch(true)}
-              className="group flex min-h-12 items-center gap-4 rounded-lg px-3 py-2.5 text-lg text-slate-700 transition duration-200 hover:bg-white/75 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white"
+              className="flex min-h-12 items-center gap-3 border-l-2 border-transparent px-3 py-2.5 text-[15px] font-semibold text-stone-600 transition-colors hover:border-stone-400 hover:text-stone-950 dark:text-stone-400 dark:hover:border-stone-600 dark:hover:text-white"
             >
-              <Search size={25} strokeWidth={2.2} className="transition duration-200 group-active:scale-90" />
+              <Search size={22} strokeWidth={2.1} />
               <span className="hidden xl:inline">{t('navSearch')}</span>
             </button>
-            <ThemeToggle withLabel />
+
+            <div className="mt-1 border-t border-stone-300 pt-2 dark:border-white/10">
+              <ThemeToggle withLabel />
+            </div>
           </nav>
 
-          <button onClick={() => setCompose(true)} className="btn-primary mt-4 w-12 xl:w-full xl:py-3">
-            <Feather size={20} className="xl:hidden" />
+          <button
+            onClick={() => setCompose(true)}
+            className="btn-primary mt-5 h-11 w-11 px-0 xl:w-full xl:px-5"
+          >
+            <Feather size={19} className="xl:hidden" />
             <span className="hidden xl:inline">{t('post')}</span>
           </button>
         </div>
 
-        {/* Account switcher / logout */}
-        <div className="relative">
+        <div className="relative border-t border-stone-300 pt-3 dark:border-white/10">
           <button
-            onClick={() => setMenu((o) => !o)}
-            className="flex min-h-14 w-full items-center gap-3 rounded-2xl p-2.5 transition duration-200 hover:bg-white/80 hover:shadow-soft dark:hover:bg-white/[0.06]"
+            onClick={() => setMenu((open) => !open)}
+            className="flex min-h-14 w-full items-center gap-3 px-2 text-left transition-colors hover:bg-stone-200/70 dark:hover:bg-white/[0.04]"
           >
             <Avatar user={user} linkable={false} />
-            <div className="hidden min-w-0 flex-1 text-left xl:block">
+            <div className="hidden min-w-0 flex-1 xl:block">
               <UserName user={user} className="max-w-full" compact />
-              <p className="truncate text-sm text-gray-500">@{user.username}</p>
+              <p className="truncate text-xs font-semibold text-stone-500">@{user.username}</p>
             </div>
             <MoreHorizontal className="hidden xl:block" size={18} />
           </button>
+
           {menu && <Dismiss onDismiss={() => setMenu(false)} />}
           {menu && (
-            <div className="panel absolute bottom-16 z-10 w-64 overflow-hidden py-2">
+            <div className="panel absolute bottom-16 left-0 z-10 w-64 overflow-hidden py-1">
               <button
                 onClick={async () => {
                   await logout();
                   toast('Signed out', 'info');
                   navigate('/login');
                 }}
-                className="flex w-full items-center gap-2 px-4 py-3 font-bold transition hover:bg-violet-50 dark:hover:bg-white/[0.07]"
+                className="flex w-full items-center gap-2 px-4 py-3 text-left font-bold transition-colors hover:bg-stone-100 dark:hover:bg-white/[0.05]"
               >
                 <LogOut size={18} /> {t('logOut')} @{user.username}
               </button>
@@ -193,82 +195,66 @@ export function Layout() {
         </div>
       </header>
 
-      {/* Main content — keyed by route for a subtle fade on navigation.
-          Feed routes are transparent so the floating cards sit right on the
-          aurora backdrop; messages keeps a glass shell for the chat surface. */}
       <main
-        className={`mx-auto min-h-dvh min-w-0 w-full lg:mx-0 ${
-          isMessagesRoute ? 'glass max-w-[920px] sm:rounded-none' : 'max-w-[600px]'
+        className={`min-h-dvh min-w-0 w-full border-r border-stone-300 bg-[#f7f4ec] dark:border-white/10 dark:bg-[#151512] lg:border-l-0 ${
+          isMessagesRoute ? 'max-w-[920px]' : 'max-w-[640px]'
         }`}
       >
-        <div key={location.pathname} className={`min-w-0 animate-page-enter ${isChatRoute ? '' : 'mobile-content-pad lg:pb-0'}`}>
+        <div
+          key={location.pathname}
+          className={`min-w-0 animate-page-enter ${isChatRoute ? '' : 'mobile-content-pad lg:pb-0'}`}
+        >
           <Outlet />
         </div>
       </main>
 
       <RightSidebar />
 
-      {/* Mobile bottom navigation — floating rounded dock */}
       {!isChatRoute && (
-        <nav className="glass-strong fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.625rem)] z-40 grid animate-slide-up grid-cols-5 rounded-[1.75rem] px-1 py-1 shadow-2xl lg:hidden">
-          {items
-            .filter((item) => ['/home', '/explore', '/communities', '/messages'].includes(item.to))
-            .map((item) => (
+        <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-stone-300 bg-[#eeeae0] pb-[env(safe-area-inset-bottom)] lg:hidden dark:border-white/10 dark:bg-[#0d0d0b]">
+          {mobileItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-3xl text-[11px] font-bold transition duration-200 ${
-                  isActive ? 'text-brand dark:text-violet-300' : 'text-slate-500'
+                `relative flex min-h-14 flex-col items-center justify-center gap-0.5 border-t-2 px-1 text-[10px] font-bold ${
+                  isActive
+                    ? 'border-brand text-stone-950 dark:text-white'
+                    : 'border-transparent text-stone-500 dark:text-stone-500'
                 }`
               }
             >
-              {({ isActive }) => (
-                <>
-                  <span
-                    className={`relative flex h-8 min-w-12 items-center justify-center rounded-full transition duration-200 ${
-                      isActive
-                        ? 'bg-gradient-to-r from-brand/20 to-accent/15 dark:from-brand/30 dark:to-accent/20'
-                        : ''
-                    }`}
-                  >
-                    <item.icon size={22} className={isActive ? 'animate-nav-pop' : ''} />
-                    {!!item.badge && item.badge > 0 && (
-                      <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-accent ring-2 ring-white dark:ring-[#0a0714]" />
-                    )}
-                  </span>
-                  <span className="max-w-full truncate px-1">
-                    {item.to === '/notifications' ? t('navAlerts') : item.label}
-                  </span>
-                </>
-              )}
+              <span className="relative">
+                <item.icon size={21} />
+                {!!item.badge && item.badge > 0 && (
+                  <span className="absolute -right-2 -top-1 h-2 w-2 bg-brand" />
+                )}
+              </span>
+              <span className="max-w-full truncate px-1">
+                {item.to === '/notifications' ? t('navAlerts') : item.label}
+              </span>
             </NavLink>
           ))}
+
           <button
             type="button"
             onClick={() => setMobileMenu(true)}
-            className="relative flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-lg text-[11px] font-bold text-slate-500 transition active:bg-violet-50 dark:active:bg-white/[0.07]"
+            className="flex min-h-14 flex-col items-center justify-center gap-0.5 border-t-2 border-transparent text-[10px] font-bold text-stone-500 dark:text-stone-500"
             aria-label="Open account menu"
           >
-            <span className="relative flex h-8 min-w-12 items-center justify-center rounded-full">
-              <Menu size={22} />
-              {(notifUnread > 0) && (
-                <span className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full bg-accent ring-2 ring-white dark:ring-[#0a0714]" />
-              )}
-            </span>
+            <Menu size={21} />
             <span>{t('navMore')}</span>
           </button>
         </nav>
       )}
 
-      {/* Floating compose button (mobile) */}
       {showMobileComposer && (
         <button
           onClick={() => setCompose(true)}
-          className="btn-primary fixed bottom-[calc(env(safe-area-inset-bottom)+5.75rem)] right-4 z-40 h-14 w-14 rounded-full p-0 lg:hidden"
+          className="btn-primary fixed bottom-[calc(env(safe-area-inset-bottom)+4.5rem)] right-3 z-40 h-12 w-12 px-0 lg:hidden"
           aria-label="Create post"
         >
-          <Feather size={22} />
+          <Feather size={20} />
         </button>
       )}
 
@@ -277,11 +263,11 @@ export function Layout() {
       <Modal open={compose} onClose={() => setCompose(false)} title="">
         <PostComposer autoFocus onPosted={() => setCompose(false)} />
       </Modal>
+
       <Modal open={mobileMenu} onClose={() => setMobileMenu(false)} title={t('yourMurmur')}>
-        <div className="grid gap-2 pb-2">
+        <div className="-mx-4 -mb-4">
           {[
             { to: `/${user.username}`, label: 'Profile', icon: User },
-            { to: '/notifications', label: 'Notifications', icon: Bell, badge: notifUnread },
             { to: '/bookmarks', label: 'Bookmarks', icon: Bookmark },
             { to: '/settings', label: 'Settings', icon: Settings },
           ].map((item) => (
@@ -292,21 +278,15 @@ export function Layout() {
                 setMobileMenu(false);
                 navigate(item.to);
               }}
-              className="flex min-h-14 items-center gap-3 rounded-2xl px-3 text-left font-bold transition active:bg-violet-50 dark:active:bg-white/[0.07]"
+              className="flex min-h-14 w-full items-center gap-3 border-t border-stone-200 px-4 text-left font-bold transition-colors hover:bg-stone-100 dark:border-white/10 dark:hover:bg-white/[0.04]"
             >
-              <span className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-white/[0.07] dark:text-slate-200">
-                <item.icon size={21} />
-                {!!item.badge && item.badge > 0 && (
-                  <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-accent px-1 text-center text-[11px] text-white">
-                    {item.badge > 99 ? '99+' : item.badge}
-                  </span>
-                )}
-              </span>
+              <item.icon size={20} />
               {item.label}
             </button>
           ))}
         </div>
       </Modal>
+
       <QuickSearch open={quickSearch} onClose={() => setQuickSearch(false)} />
     </div>
   );
