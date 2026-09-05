@@ -4,47 +4,19 @@
 
 :root {
   color-scheme: light dark;
-  --surface: 255 255 255;
-  --surface-muted: 255 241 242;
-  --ink: 15 23 42;
-
-  /* ── Liquid-glass design tokens (light) ── */
-  --glass-blur: 16px;
-  --glass-saturate: 165%;
-  --glass-bg: rgba(255, 255, 255, 0.62);
-  --glass-bg-strong: rgba(255, 255, 255, 0.78);
-  --glass-border: rgba(255, 255, 255, 0.6);
-  --glass-hairline: rgba(15, 23, 42, 0.07);
-  --glass-sheen: rgba(255, 255, 255, 0.7);
-  --glass-shadow: 0 16px 40px -24px rgba(15, 23, 42, 0.4);
-  --radius-glass: 1.25rem;
+  --page: #eeeae0;
+  --surface: #f7f4ec;
+  --surface-strong: #fbf9f3;
+  --line: #d5d0c5;
+  --ink: #171714;
 }
 
 .dark {
-  /* ── Liquid-glass design tokens (dark) ── */
-  --glass-blur: 18px;
-  --glass-saturate: 150%;
-  --glass-bg: rgba(26, 20, 44, 0.55);
-  --glass-bg-strong: rgba(26, 20, 44, 0.72);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-hairline: rgba(255, 255, 255, 0.08);
-  --glass-sheen: rgba(255, 255, 255, 0.14);
-  --glass-shadow: 0 22px 55px -30px rgba(0, 0, 0, 0.8);
-}
-
-/* Installed PWA (iPhone "Add to Home Screen" / desktop app): turn the glass
-   up — more blur, more vibrancy, thinner surfaces — for the iOS-style look. */
-.standalone {
-  --glass-blur: 28px;
-  --glass-saturate: 190%;
-  --glass-bg: rgba(255, 255, 255, 0.5);
-  --glass-bg-strong: rgba(255, 255, 255, 0.64);
-}
-.standalone.dark {
-  --glass-blur: 30px;
-  --glass-saturate: 175%;
-  --glass-bg: rgba(26, 20, 44, 0.42);
-  --glass-bg-strong: rgba(26, 20, 44, 0.6);
+  --page: #0d0d0b;
+  --surface: #151512;
+  --surface-strong: #1b1b17;
+  --line: rgba(255, 255, 255, 0.1);
+  --ink: #f5f3ec;
 }
 
 html,
@@ -55,54 +27,19 @@ body,
 }
 
 body {
-  @apply bg-[#f3f1fb] text-slate-950 dark:bg-[#070512] dark:text-slate-100;
+  @apply bg-[#eeeae0] text-stone-950 dark:bg-[#0d0d0b] dark:text-stone-100;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.18s ease, color 0.18s ease;
 }
 
-/* Ambient "aurora" backdrop: violet / cyan / fuchsia light for the frosted
-   surfaces to refract. Fixed + non-blocking. */
 body::before {
-  content: '';
-  position: fixed;
-  inset: -12%;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(42% 38% at 12% -5%, rgba(139, 92, 246, 0.26), transparent 60%),
-    radial-gradient(38% 34% at 100% 8%, rgba(34, 211, 238, 0.18), transparent 60%),
-    radial-gradient(46% 40% at 50% 112%, rgba(217, 70, 239, 0.15), transparent 62%);
-  filter: saturate(118%);
-  /* The aurora slowly breathes: gentle drift, scale and hue rotation. */
-  animation: aurora-drift 36s ease-in-out infinite alternate;
-  will-change: transform, filter;
-}
-
-@keyframes aurora-drift {
-  0% {
-    transform: translate3d(0, 0, 0) scale(1);
-    filter: saturate(118%) hue-rotate(0deg);
-  }
-  50% {
-    transform: translate3d(2%, -1.5%, 0) scale(1.06);
-    filter: saturate(140%) hue-rotate(14deg);
-  }
-  100% {
-    transform: translate3d(-2%, 1.5%, 0) scale(1.03);
-    filter: saturate(126%) hue-rotate(-12deg);
-  }
-}
-.dark body::before {
-  background:
-    radial-gradient(44% 40% at 10% -6%, rgba(124, 58, 237, 0.3), transparent 60%),
-    radial-gradient(40% 36% at 102% 6%, rgba(6, 182, 212, 0.2), transparent 60%),
-    radial-gradient(48% 42% at 52% 114%, rgba(217, 70, 239, 0.18), transparent 62%);
+  display: none;
 }
 
 ::selection {
-  @apply bg-brand/20 text-slate-950 dark:text-white;
+  @apply bg-brand/20 text-stone-950 dark:text-white;
 }
 
 a,
@@ -110,16 +47,23 @@ button {
   touch-action: manipulation;
 }
 
-/* Thin, theme-aware scrollbars */
 * {
   scrollbar-width: thin;
+  scrollbar-color: #aaa398 transparent;
 }
+
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
+
 *::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 dark:bg-gray-700 rounded-full;
+  background: #aaa398;
+  border-radius: 2px;
+}
+
+.dark *::-webkit-scrollbar-thumb {
+  background: #4d4b45;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -131,7 +75,6 @@ button {
   }
 }
 
-/* Visible focus rings for keyboard users only (mouse clicks stay clean). */
 @layer base {
   a:focus-visible,
   button:focus-visible,
@@ -139,147 +82,73 @@ button {
   textarea:focus-visible,
   select:focus-visible,
   [tabindex]:focus-visible {
-    @apply outline-none ring-2 ring-brand/70 ring-offset-2 ring-offset-violet-50 dark:ring-offset-[#0a0714];
+    @apply outline-none ring-2 ring-brand ring-offset-2 ring-offset-[#eeeae0] dark:ring-offset-[#0d0d0b];
   }
 }
 
 @layer components {
-  /* Reusable frosted surfaces. `.glass` for chrome, `.glass-strong` where text
-     density needs a more opaque backing. Includes a top sheen for the
-     light-catching "liquid glass" edge, with an opaque fallback. */
-  .glass {
-    background: var(--glass-bg);
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-sheen);
-  }
+  /* Compatibility surface classes. They are intentionally opaque now: no blur,
+     no glass refraction, no decorative gradient lighting. */
+  .glass,
   .glass-strong {
-    background: var(--glass-bg-strong);
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-sheen);
+    @apply border border-stone-300 bg-[#f7f4ec] shadow-none dark:border-white/10 dark:bg-[#151512];
   }
-  /* Sticky top/bottom bars: translucent blur with a single hairline edge. */
+
   .glass-bar {
-    background: var(--glass-bg-strong);
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-    border-bottom: 1px solid var(--glass-hairline);
+    @apply border-b border-stone-300 bg-[#f4f1e8] shadow-none dark:border-white/10 dark:bg-[#11110f];
   }
 
   .btn-primary {
-    @apply relative inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full bg-brand px-5 py-2.5 font-bold text-white shadow-lift transition-all duration-200 hover:bg-brand-hover hover:shadow-lg hover:shadow-brand/40 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:active:scale-100;
-    background-image: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%);
+    @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-md bg-brand px-5 py-2.5 font-extrabold text-white shadow-none transition-colors duration-150 hover:bg-brand-hover active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 disabled:active:translate-y-0;
   }
-  /* Light sweep across primary buttons on hover. */
-  .btn-primary::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, 0.35) 50%, transparent 68%);
-    transform: translateX(-130%);
-    transition: transform 0.55s ease;
-    pointer-events: none;
-  }
-  .btn-primary:hover::after {
-    transform: translateX(130%);
-  }
+
   .btn-outline {
-    @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full px-5 py-2.5 font-bold text-slate-800 transition-all duration-200 hover:border-brand/30 hover:text-brand active:scale-[0.97] dark:text-slate-100;
-    background: var(--glass-bg-strong);
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-    border: 1px solid var(--glass-border);
+    @apply inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-md border border-stone-400 bg-transparent px-5 py-2.5 font-extrabold text-stone-900 transition-colors duration-150 hover:border-stone-950 hover:bg-stone-950 hover:text-white dark:border-stone-600 dark:text-stone-100 dark:hover:border-stone-100 dark:hover:bg-stone-100 dark:hover:text-stone-950;
   }
+
   .input {
-    @apply min-h-11 w-full rounded-xl border border-slate-300/70 bg-white/70 px-4 py-2.5 outline-none transition duration-200 placeholder:text-slate-400 focus:border-brand/50 focus:bg-white focus:ring-4 focus:ring-brand/10 dark:border-white/10 dark:bg-white/[0.05] dark:placeholder:text-slate-500 dark:focus:bg-white/[0.08];
-    -webkit-backdrop-filter: blur(8px);
-    backdrop-filter: blur(8px);
+    @apply min-h-11 w-full rounded-sm border border-stone-400 bg-[#fbf9f3] px-3 py-2.5 outline-none transition-colors duration-150 placeholder:text-stone-400 focus:border-brand focus:ring-1 focus:ring-brand dark:border-stone-700 dark:bg-[#1b1b17] dark:placeholder:text-stone-600;
   }
-  /* Aurora feed surface: content floats as separated rounded cards over the
-     ambient background instead of a single bordered column. */
+
+  /* Feed items form one continuous reading column instead of floating cards. */
   .card {
-    @apply mx-2 mb-3 rounded-3xl border border-white/70 bg-white/75 shadow-soft sm:mx-0 dark:border-white/[0.08] dark:bg-white/[0.045];
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    @apply m-0 rounded-none border-x-0 border-b border-t-0 border-stone-300 bg-transparent shadow-none dark:border-white/10;
   }
+
   .panel {
-    border-radius: var(--radius-glass);
-    background: var(--glass-bg-strong);
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-sheen);
+    @apply rounded-md border border-stone-300 bg-[#fbf9f3] shadow-[0_10px_24px_-18px_rgba(0,0,0,0.45)] dark:border-white/10 dark:bg-[#1b1b17];
   }
+
   .icon-button {
-    @apply inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-full text-slate-500 transition duration-200 hover:bg-white/70 hover:text-brand hover:shadow-sm active:scale-90 dark:text-slate-400 dark:hover:bg-white/[0.1] dark:hover:text-violet-300;
+    @apply inline-flex min-h-10 min-w-10 cursor-pointer items-center justify-center rounded-sm text-stone-500 transition-colors duration-150 hover:bg-stone-200 hover:text-stone-950 active:bg-stone-300 dark:text-stone-400 dark:hover:bg-white/[0.06] dark:hover:text-white;
   }
+
   .search-field {
-    @apply flex min-h-12 items-center gap-2 rounded-2xl px-4 py-2.5 transition duration-200 focus-within:border-brand/40 focus-within:ring-4 focus-within:ring-brand/10;
-    background: var(--glass-bg);
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-    border: 1px solid var(--glass-border);
+    @apply flex min-h-11 items-center gap-2 border-b-2 border-stone-400 bg-transparent px-1 py-2 transition-colors focus-within:border-brand;
   }
+
   .post-card {
-    @apply relative transition duration-200 hover:z-[1] hover:-translate-y-0.5 hover:bg-white/85 hover:shadow-[0_20px_45px_-28px_rgba(76,29,149,0.55)] active:translate-y-0 active:bg-white/90 dark:hover:bg-white/[0.07] dark:active:bg-white/[0.09];
+    @apply relative transition-colors duration-150 hover:bg-[#f0ece2] active:bg-[#ebe6db] dark:hover:bg-white/[0.025] dark:active:bg-white/[0.04];
   }
+
   .mobile-safe-pad {
     padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem);
   }
+
   .mobile-content-pad {
-    /* Clears the floating bottom dock (plus its offset) on mobile. */
-    padding-bottom: calc(env(safe-area-inset-bottom) + 6.5rem);
+    padding-bottom: calc(env(safe-area-inset-bottom) + 4.5rem);
   }
+
   .safe-top {
     padding-top: env(safe-area-inset-top);
   }
 }
 
-/* Opaque fallback when backdrop-filter isn't supported, so text stays legible. */
-@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-  .glass,
-  .glass-strong,
-  .glass-bar,
-  .panel,
-  .btn-outline,
-  .search-field {
-    background: rgba(255, 255, 255, 0.96);
-  }
-  .dark .glass,
-  .dark .glass-strong,
-  .dark .glass-bar,
-  .dark .panel,
-  .dark .btn-outline,
-  .dark .search-field {
-    background: rgba(17, 19, 30, 0.96);
-  }
-}
-
-@layer utilities {
-  /* Hide scrollbars on horizontal strips (story bar) without disabling scroll. */
-  .scrollbar-none {
-    scrollbar-width: none;
-  }
-  .scrollbar-none::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Skeleton shimmer effect */
-  .skeleton {
-    @apply relative overflow-hidden bg-slate-200/80 dark:bg-white/10;
-  }
-  .skeleton::after {
-    content: '';
-    @apply absolute inset-0 -translate-x-full;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.12),
-      transparent
-    );
-    animation: shimmer 1.5s infinite;
-  }
+/* Product simplification: calls and game invites are no longer part of the
+   primary Murmur experience. Keeping the dormant code temporarily avoids a
+   risky backend migration while removing these actions from the interface. */
+button[aria-label='Start voice call'],
+button[aria-label='Start video call'],
+button[aria-label='Create game invite'] {
+  display: none !important;
 }
