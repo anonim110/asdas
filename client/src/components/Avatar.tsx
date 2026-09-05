@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usePresence } from '../store/presence';
-import { getAvatarTheme, getUsernameInitial } from '../lib/avatar';
+import { getUsernameInitial } from '../lib/avatar';
 import type { UserSummary } from '../types';
 
 const sizes = {
   sm: 'h-8 w-8',
   md: 'h-10 w-10',
   lg: 'h-12 w-12',
-  xl: 'h-28 w-28 border-4 border-white sm:h-32 sm:w-32 dark:border-black',
+  xl: 'h-28 w-28 border-4 border-[#f7f4ec] sm:h-32 sm:w-32 dark:border-[#151512]',
 };
 
 const dotSizes = {
@@ -29,7 +29,6 @@ export function Avatar({ user, size = 'md', linkable = true, showPresence }: Pro
   const online = usePresence((s) => (user.id ? s.online[user.id] : false));
   const [imageFailed, setImageFailed] = useState(false);
   const initial = getUsernameInitial(user.username);
-  const theme = getAvatarTheme(user.username);
 
   useEffect(() => setImageFailed(false), [user.avatarUrl]);
 
@@ -41,14 +40,14 @@ export function Avatar({ user, size = 'md', linkable = true, showPresence }: Pro
       decoding="async"
       draggable={false}
       onError={() => setImageFailed(true)}
-      className={`${sizes[size]} animate-avatar-reveal rounded-full bg-slate-200 object-cover ring-2 ring-white shadow-sm dark:bg-slate-800 dark:ring-[#0a0714]`}
+      className={`${sizes[size]} animate-avatar-reveal rounded-full bg-stone-200 object-cover ring-1 ring-stone-300 dark:bg-stone-800 dark:ring-stone-700`}
     />
   ) : (
     <div
       role="img"
       aria-label={`${user.displayName} avatar`}
       title={`@${user.username}`}
-      className={`${sizes[size]} flex select-none items-center justify-center rounded-full bg-gradient-to-br ${theme.avatar} font-black text-white shadow-sm ring-2 ring-white [text-shadow:0_1px_2px_rgb(0_0_0/0.25)] dark:ring-[#0a0714]`}
+      className={`${sizes[size]} flex select-none items-center justify-center rounded-full bg-stone-800 font-black text-white ring-1 ring-stone-950/15 dark:bg-stone-200 dark:text-stone-950 dark:ring-white/10`}
     >
       {initial}
     </div>
@@ -59,7 +58,7 @@ export function Avatar({ user, size = 'md', linkable = true, showPresence }: Pro
       {avatar}
       {showPresence && online && (
         <span
-          className={`absolute bottom-0 right-0 ${dotSizes[size]} rounded-full border-2 border-white bg-emerald-500 shadow-sm dark:border-black`}
+          className={`absolute bottom-0 right-0 ${dotSizes[size]} rounded-full border-2 border-[#f7f4ec] bg-emerald-600 dark:border-[#151512]`}
           title="Online"
           aria-label="Online"
         />
@@ -68,11 +67,12 @@ export function Avatar({ user, size = 'md', linkable = true, showPresence }: Pro
   );
 
   if (!linkable) return content;
+
   return (
     <Link
       to={`/${user.username}`}
       onClick={(e) => e.stopPropagation()}
-      className="shrink-0 rounded-full transition duration-200 hover:brightness-105 active:scale-95"
+      className="shrink-0 rounded-full transition-opacity hover:opacity-85"
     >
       {content}
     </Link>
