@@ -20,38 +20,43 @@ export function Explore() {
     <div>
       <PageHeader title="Explore">
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
+          onSubmit={(event) => {
+            event.preventDefault();
             if (q.trim()) navigate(`/search?q=${encodeURIComponent(q.trim())}`);
           }}
           className="px-4 pb-3"
         >
           <div className="search-field">
-            <Search size={18} className="text-slate-500" />
+            <Search size={17} className="text-stone-500" />
             <input
               value={q}
-              onChange={(e) => setQ(e.target.value)}
+              onChange={(event) => setQ(event.target.value)}
               placeholder="Search Murmur"
-              className="w-full bg-transparent outline-none placeholder:text-slate-400"
+              className="w-full bg-transparent text-sm font-semibold outline-none placeholder:text-stone-500"
             />
           </div>
         </form>
       </PageHeader>
 
       {!!trends?.length && (
-        <div className="card">
-          <h2 className="px-4 pb-1 pt-3 text-xl font-extrabold">Trends</h2>
-          {trends.map((t) => (
+        <section className="border-b border-stone-300 px-4 py-4 dark:border-white/10">
+          <div className="mb-2 flex items-end justify-between border-t-2 border-stone-950 pt-3 dark:border-stone-100">
+            <h2 className="text-xs font-black uppercase tracking-[0.14em] text-stone-500">Trending now</h2>
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-stone-400">Murmur</span>
+          </div>
+
+          {trends.map((trend, index) => (
             <Link
-              key={t.tag}
-              to={`/hashtag/${t.tag}`}
-              className="block px-4 py-3 transition duration-200 hover:bg-violet-50 dark:hover:bg-white/[0.04]"
+              key={trend.tag}
+              to={`/hashtag/${trend.tag}`}
+              className="grid grid-cols-[2rem_1fr_auto] items-center gap-2 border-b border-stone-300 py-3 last:border-b-0 transition-colors hover:text-brand dark:border-white/10"
             >
-              <p className="font-bold">#{t.tag}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{compactNumber(t.count)} posts</p>
+              <span className="text-xs font-black tabular-nums text-stone-400">{String(index + 1).padStart(2, '0')}</span>
+              <span className="font-black">#{trend.tag}</span>
+              <span className="text-xs font-semibold tabular-nums text-stone-500">{compactNumber(trend.count)} posts</span>
             </Link>
           ))}
-        </div>
+        </section>
       )}
 
       <Feed
