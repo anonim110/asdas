@@ -28,63 +28,81 @@ export function RightSidebar() {
   });
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-[360px] shrink-0 space-y-4 overflow-y-auto px-6 py-4 lg:block">
+    <aside className="sticky top-0 hidden h-screen w-[350px] shrink-0 overflow-y-auto bg-[#eeeae0] px-6 py-5 lg:block dark:bg-[#0d0d0b]">
       <form
         onSubmit={(e) => {
           e.preventDefault();
           if (q.trim()) navigate(`/search?q=${encodeURIComponent(q.trim())}`);
         }}
-        className="sticky top-0 z-10 pb-2"
+        className="sticky top-0 z-10 bg-[#eeeae0] pb-5 dark:bg-[#0d0d0b]"
       >
         <div className="search-field">
-          <Search size={18} className="text-slate-500" />
+          <Search size={17} className="text-stone-500" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={t('navSearch')}
-            className="w-full bg-transparent outline-none placeholder:text-slate-400"
+            className="w-full bg-transparent text-sm font-semibold outline-none placeholder:text-stone-500"
           />
         </div>
       </form>
 
       {!!suggestions?.length && (
-        <div className="panel overflow-hidden">
-          <h2 className="px-4 py-3 text-xl font-extrabold">{t('whoToFollow')}</h2>
-          {suggestions.map((u) => (
-            <div key={u.id} className="flex items-center gap-3 px-4 py-3 transition duration-200 hover:bg-violet-50 dark:hover:bg-white/[0.06]">
-              <Avatar user={u} size="sm" />
-              <Link to={`/${u.username}`} className="min-w-0 flex-1">
-                <UserName user={u} className="max-w-full leading-tight" compact />
-                <p className="truncate text-sm text-slate-500 dark:text-slate-400">@{u.username}</p>
-              </Link>
-              <FollowButton username={u.username} initialFollowing={!!u.isFollowing} small />
-            </div>
-          ))}
-        </div>
+        <section className="border-t-2 border-stone-950 py-4 dark:border-stone-100">
+          <h2 className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-stone-500">
+            {t('whoToFollow')}
+          </h2>
+          <div>
+            {suggestions.map((user) => (
+              <div
+                key={user.id}
+                className="flex items-center gap-3 border-b border-stone-300 py-3 last:border-b-0 dark:border-white/10"
+              >
+                <Avatar user={user} size="sm" />
+                <Link to={`/${user.username}`} className="min-w-0 flex-1">
+                  <UserName user={user} className="max-w-full leading-tight" compact />
+                  <p className="truncate text-xs font-semibold text-stone-500">@{user.username}</p>
+                </Link>
+                <FollowButton username={user.username} initialFollowing={!!user.isFollowing} small />
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
-      <div className="panel overflow-hidden">
-        <h2 className="px-4 py-3 text-xl font-extrabold">{t('trendsForYou')}</h2>
+      <section className="mt-6 border-t-2 border-stone-950 py-4 dark:border-stone-100">
+        <h2 className="mb-3 text-xs font-black uppercase tracking-[0.14em] text-stone-500">
+          {t('trendsForYou')}
+        </h2>
+
         {!trends?.length && (
-          <p className="px-4 pb-4 text-sm text-slate-500 dark:text-slate-400">
-            No trends yet - start posting with #hashtags.
+          <p className="border-b border-stone-300 pb-4 text-sm leading-5 text-stone-500 dark:border-white/10">
+            No trends yet. Posts with hashtags will appear here.
           </p>
         )}
-        {trends?.map((t) => (
+
+        {trends?.map((trend, index) => (
           <Link
-            key={t.tag}
-            to={`/hashtag/${t.tag}`}
-            className="block px-4 py-3 transition duration-200 hover:bg-violet-50 dark:hover:bg-white/[0.06]"
+            key={trend.tag}
+            to={`/hashtag/${trend.tag}`}
+            className="grid grid-cols-[2rem_1fr_auto] items-start gap-2 border-b border-stone-300 py-3 transition-colors hover:text-brand dark:border-white/10"
           >
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Trending</p>
-            <p className="font-bold">#{t.tag}</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">{compactNumber(t.count)} posts</p>
+            <span className="pt-0.5 text-xs font-black tabular-nums text-stone-400">
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate font-black">#{trend.tag}</span>
+              <span className="block text-xs font-semibold text-stone-500">Trending</span>
+            </span>
+            <span className="pt-0.5 text-xs font-semibold tabular-nums text-stone-500">
+              {compactNumber(trend.count)}
+            </span>
           </Link>
         ))}
-      </div>
+      </section>
 
-      <p className="px-4 text-xs font-medium text-slate-500 dark:text-slate-400">
-        Murmur - where the world thinks out loud.
+      <p className="mt-7 border-t border-stone-300 pt-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-stone-500 dark:border-white/10">
+        Murmur · thoughts in public
       </p>
     </aside>
   );
