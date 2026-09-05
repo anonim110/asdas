@@ -1,6 +1,12 @@
-// Gaming presence was intentionally removed from the public social UI.
-// Keep this compatibility component temporarily so older imports do not break
-// while the related backend fields are phased out safely.
-export function GameStatus() {
+interface GameStatusProps {
+  status?: string | null;
+  userId?: string;
+  className?: string;
+}
+
+// Gaming presence is intentionally hidden from the social UI.
+// Keep the old prop surface temporarily so existing callers compile while
+// the dormant gaming code is removed in smaller, safer steps.
+export function GameStatus(_props: GameStatusProps) {
   return null;
 }
