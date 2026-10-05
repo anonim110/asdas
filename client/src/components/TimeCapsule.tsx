@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Hourglass, Lock, Sparkles } from 'lucide-react';
+import { Hourglass, Lock } from 'lucide-react';
 import { api } from '../lib/api';
 import { t, useLocale } from '../lib/i18n';
 import type { Post } from '../types';
 
 // Sealed time-capsule body shown in place of a post's content until its
-// unlockAt moment. Runs a live countdown; when it hits zero the capsule
-// plays an opening animation and refetches the (now unsealed) post.
+// unlockAt moment. Polls a countdown; once it hits zero, refetches the post.
 export function TimeCapsule({ post, onUnsealed }: { post: Post; onUnsealed: (fresh: Post) => void }) {
   useLocale((s) => s.locale);
   const unlockAt = new Date(post.unlockAt!).getTime();
@@ -14,35 +13,42 @@ export function TimeCapsule({ post, onUnsealed }: { post: Post; onUnsealed: (fre
   const [opening, setOpening] = useState(false);
 
   useEffect(() => {
-    const timer = setInterval(() => setRemaining(unlockAt - Date.now()), 500);
+    const timer = setInterval(() => setRemaining(unlockAt - Date.now()), 1000);
     return () => clearInterval(timer);
   }, [unlockAt]);
 
-  // Countdown finished: burst open, then fetch the unsealed post (small
-  // delay so the server clock is definitely past unlockAt).
   useEffect(() => {
     if (remaining > 0 || opening) return;
     setOpening(true);
     let cancelled = false;
     let attempt = 0;
+    // Single mutable slot for "whichever timeout is currently pending" —
+    // the cleanup below always clears the latest one, so nothing is ever
+    // left to fire after unmount. Retries with backoff (capped at 8s)
+    // instead of giving up: the opening worker polls every 30s, so a
+    // capsule can briefly still read as locked right after its countdown
+    // hits zero — giving up would leave the card stuck on "opening" forever.
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
     async function open() {
       attempt += 1;
       try {
         const { data } = await api.get<{ post: Post }>(`/posts/${post.id}`);
         if (cancelled) return;
-        if (data.post.locked && attempt < 5) {
-          setTimeout(open, 1500);
+        if (data.post.locked) {
+          timer = setTimeout(open, Math.min(2000 + attempt * 500, 8000));
           return;
         }
         onUnsealed(data.post);
       } catch {
-        if (!cancelled && attempt < 5) setTimeout(open, 2000);
+        if (!cancelled) timer = setTimeout(open, Math.min(2000 + attempt * 500, 8000));
       }
     }
-    const kick = setTimeout(open, 1200);
+    // Small initial delay so the server clock is definitely past unlockAt.
+    timer = setTimeout(open, 1200);
     return () => {
       cancelled = true;
-      clearTimeout(kick);
+      if (timer) clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remaining <= 0]);
@@ -56,30 +62,9 @@ export function TimeCapsule({ post, onUnsealed }: { post: Post; onUnsealed: (fre
   });
 
   return (
-    <div
-      className={`capsule-shimmer relative mt-2 overflow-hidden rounded-2xl border border-violet-300/50 bg-gradient-to-br from-violet-500/15 via-fuchsia-500/10 to-cyan-400/15 p-5 text-center dark:border-violet-400/25 ${
-        opening ? 'capsule-open' : ''
-      }`}
-    >
-      <div className="relative mx-auto h-14 w-14">
-        <div className="capsule-float flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/40">
-          {opening ? <Sparkles size={26} /> : <Lock size={24} />}
-        </div>
-        {/* Confetti burst while the capsule opens */}
-        {opening &&
-          Array.from({ length: 12 }, (_, i) => (
-            <span
-              key={i}
-              style={
-                {
-                  '--angle': `${i * 30}deg`,
-                  animationDelay: `${(i % 4) * 0.12}s`,
-                  background: ['#8b5cf6', '#f472b6', '#22d3ee', '#facc15'][i % 4],
-                } as React.CSSProperties
-              }
-              className="capsule-confetti pointer-events-none absolute inset-0 m-auto h-2 w-2 rounded-sm"
-            />
-          ))}
+    <div className="mt-2 rounded-2xl border border-violet-300/50 bg-violet-50/60 p-5 text-center dark:border-violet-400/25 dark:bg-violet-500/5">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-violet-500 text-white">
+        <Lock size={20} />
       </div>
 
       <p className="mt-3 flex items-center justify-center gap-1.5 text-sm font-bold text-violet-700 dark:text-violet-300">
@@ -87,12 +72,10 @@ export function TimeCapsule({ post, onUnsealed }: { post: Post; onUnsealed: (fre
       </p>
 
       {opening ? (
-        <p className="mt-1 animate-pulse text-lg font-extrabold">{t('capsuleOpening')}</p>
+        <p className="mt-1 text-lg font-extrabold">{t('capsuleOpening')}</p>
       ) : (
         <>
-          <p className="mt-1 text-2xl font-extrabold tabular-nums tracking-tight" aria-live="off">
-            {formatRemaining(remaining)}
-          </p>
+          <p className="mt-1 text-2xl font-extrabold tabular-nums tracking-tight">{formatRemaining(remaining)}</p>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
             {t('capsuleOpensAt')} {openDate}
           </p>
@@ -102,7 +85,7 @@ export function TimeCapsule({ post, onUnsealed }: { post: Post; onUnsealed: (fre
   );
 }
 
-// "12д 5ч 03м 12с" — compact per-locale countdown; drops leading zero units.
+// "12d 5h 03m 12s" — drops leading zero units.
 function formatRemaining(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
   const d = Math.floor(total / 86400);

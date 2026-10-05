@@ -21,7 +21,6 @@ router.post(
 
 // Static paths must precede the `/:id` matcher.
 router.get('/bookmarks', requireAuth, validate({ query: cursorQuerySchema }), asyncHandler(post.listBookmarks));
-router.get('/capsules', requireAuth, asyncHandler(post.listCapsules));
 
 router.get('/:id', optionalAuth, asyncHandler(post.getOne));
 router.get('/:id/thread', optionalAuth, asyncHandler(post.getThread));
@@ -32,16 +31,16 @@ router.patch('/:id', requireAuth, validate({ body: updatePostSchema }), asyncHan
 
 router.post('/:id/poll/vote', requireAuth, writeLimiter, validate({ body: votePollSchema }), asyncHandler(post.votePoll));
 
-router.post('/:id/like', requireAuth, asyncHandler(post.like));
-router.delete('/:id/like', requireAuth, asyncHandler(post.unlike));
+router.post('/:id/like', requireAuth, writeLimiter, asyncHandler(post.like));
+router.delete('/:id/like', requireAuth, writeLimiter, asyncHandler(post.unlike));
 
 router.post('/:id/repost', requireAuth, writeLimiter, asyncHandler(post.repost));
 router.delete('/:id/repost', requireAuth, asyncHandler(post.unrepost));
 
-router.post('/:id/bookmark', requireAuth, asyncHandler(post.bookmark));
-router.delete('/:id/bookmark', requireAuth, asyncHandler(post.unbookmark));
+router.post('/:id/bookmark', requireAuth, writeLimiter, asyncHandler(post.bookmark));
+router.delete('/:id/bookmark', requireAuth, writeLimiter, asyncHandler(post.unbookmark));
 
-router.post('/:id/pin', requireAuth, asyncHandler(post.pin));
+router.post('/:id/pin', requireAuth, writeLimiter, asyncHandler(post.pin));
 router.delete('/:id/pin', requireAuth, asyncHandler(post.unpin));
 
 export default router;
