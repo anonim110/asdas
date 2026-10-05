@@ -1,9 +1,28 @@
 // Structured "card" messages carried inside a DM's text content, following
 // the same convention as lib/gameInvite: a versioned prefix + JSON payload.
-// The server treats them as plain text; only the client renders them richly.
+// The server treats them as plain text — it does not validate this JSON at
+// all — so any field here can be forged by whoever sent the message. Only
+// render fields that are safe to be attacker-controlled (an internal post
+// id is fine; a free-text "author name" impersonating someone is not).
+
+import { API_ORIGIN } from './api';
 
 const STORY_PREFIX = 'MURMUR_STORY_REPLY_V1:';
 const POST_PREFIX = 'MURMUR_POST_SHARE_V1:';
+
+// Only accept media URLs that point at our own upload storage or Cloudinary
+// (the two places the server ever stores uploads) — otherwise a crafted DM
+// could load an arbitrary attacker-controlled URL into an <img>/<video> as
+// a tracking pixel.
+function isTrustedMediaUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url, API_ORIGIN);
+    if (parsed.origin === API_ORIGIN && parsed.pathname.startsWith('/uploads/')) return true;
+    return parsed.protocol === 'https:' && /(^|\.)res\.cloudinary\.com$/.test(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
 
 export interface StoryReplyCard {
   mediaUrl: string;
@@ -33,6 +52,7 @@ export function parseStoryReply(value: string | null | undefined): StoryReplyCar
   try {
     const parsed = JSON.parse(value.slice(STORY_PREFIX.length)) as Partial<StoryReplyCard>;
     if (typeof parsed.mediaUrl !== 'string' || !parsed.mediaUrl) return null;
+    if (!isTrustedMediaUrl(parsed.mediaUrl)) return null;
     return {
       mediaUrl: parsed.mediaUrl,
       mediaType: parsed.mediaType === 'VIDEO' ? 'VIDEO' : 'IMAGE',

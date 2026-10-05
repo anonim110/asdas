@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { MediaType } from '../types/enums';
 import { ApiError } from '../utils/apiError';
@@ -138,6 +139,9 @@ export async function createPost({
   if (quotedPostId) {
     const quoted = await prisma.post.findUnique({ where: { id: quotedPostId } });
     if (!quoted) throw ApiError.notFound('Quoted post not found');
+    if (quoted.unlockAt && quoted.unlockAt.getTime() > Date.now()) {
+      throw ApiError.badRequest('This time capsule is still sealed');
+    }
   }
   // Posting into a community requires membership (top-level posts only).
   if (communityId) {
@@ -313,11 +317,17 @@ export async function likePost(postId: string, userId: string) {
   const post = await prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } });
   if (!post) throw ApiError.notFound('Post not found');
 
-  await prisma.like.upsert({
-    where: { userId_postId: { userId, postId } },
-    create: { userId, postId },
-    update: {},
-  });
+  // Only notify when the like is actually new — an atomic create (rather
+  // than upsert) lets a duplicate P2002 tell us to skip the notification,
+  // so repeatedly calling this endpoint can't spam the author.
+  try {
+    await prisma.like.create({ data: { userId, postId } });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      return getCounts(postId);
+    }
+    throw err;
+  }
   await createNotification({ type: 'LIKE', recipientId: post.authorId, actorId: userId, postId });
   return getCounts(postId);
 }

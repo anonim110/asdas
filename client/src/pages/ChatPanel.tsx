@@ -18,6 +18,7 @@ import { Dismiss } from '../components/Dismiss';
 import { GameInviteCard } from '../components/GameInviteCard';
 import { VoiceMessage } from '../components/VoiceMessage';
 import { VideoCircle } from '../components/VideoCircle';
+import { SharedPostCard } from '../components/SharedPostCard';
 import { GameStatus } from '../components/GameStatus';
 import { mediaErrorDetails, openMediaSettings, requestUserMedia } from '../lib/mediaAccess';
 import type { MediaAccessKind } from '../lib/desktop';
@@ -713,32 +714,11 @@ export function ChatPanel({ conversation }: { conversation: Conversation }) {
                           </div>
                         </div>
                       ) : postShare ? (
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/post/${postShare.postId}`)}
-                          className={`block w-56 max-w-full px-2 py-1.5 text-left transition active:scale-[0.98]`}
-                        >
-                          <p className={`mb-1 text-xs font-semibold ${mine ? 'text-white/75' : 'text-slate-500 dark:text-slate-400'}`}>
-                            {t('sharedAPost')}
-                          </p>
-                          <span
-                            className={`block rounded-xl border p-2.5 ${
-                              mine
-                                ? 'border-white/25 bg-white/10'
-                                : 'border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/[0.05]'
-                            }`}
-                          >
-                            <span className="block truncate text-sm font-bold">
-                              {postShare.authorName}{' '}
-                              <span className={mine ? 'font-medium text-white/70' : 'font-medium text-slate-500 dark:text-slate-400'}>
-                                @{postShare.authorUsername}
-                              </span>
-                            </span>
-                            {postShare.excerpt && (
-                              <span className="mt-0.5 line-clamp-3 block text-sm leading-5">{postShare.excerpt}</span>
-                            )}
-                          </span>
-                        </button>
+                        <SharedPostCard
+                          postId={postShare.postId}
+                          mine={mine}
+                          onOpen={() => navigate(`/post/${postShare.postId}`)}
+                        />
                       ) : (
                         m.content && <p className="whitespace-pre-wrap break-words px-3 py-1 leading-6">{m.content}</p>
                       )}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Heart,
@@ -57,6 +57,12 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
   const [repostMenu, setRepostMenu] = useState(false);
   const [deleted, setDeleted] = useState(false);
   const [likeBurst, setLikeBurst] = useState(false);
+  // Guards against a rapid double-click firing a second request before the
+  // first resolves — without this, an out-of-order response (e.g. the
+  // unlike's response arriving before the like's) can overwrite the counts
+  // with stale data and permanently desync them from the server.
+  const likeBusy = useRef(false);
+  const repostBusy = useRef(false);
   const [content, setContent] = useState<string | null>(display.content);
   const [editedAt, setEditedAt] = useState<string | null>(display.editedAt);
   const [editOpen, setEditOpen] = useState(false);
@@ -117,6 +123,8 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
 
   async function toggleLike(e: React.MouseEvent) {
     e.stopPropagation();
+    if (likeBusy.current) return;
+    likeBusy.current = true;
     const next = !viewer.liked;
     if (next) {
       setLikeBurst(true);
@@ -132,11 +140,15 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
     } catch {
       setViewer((v) => ({ ...v, liked: !next }));
       setCounts((c) => ({ ...c, likes: c.likes + (next ? -1 : 1) }));
+    } finally {
+      likeBusy.current = false;
     }
   }
 
   async function toggleRepost() {
     setRepostMenu(false);
+    if (repostBusy.current) return;
+    repostBusy.current = true;
     const next = !viewer.reposted;
     setViewer((v) => ({ ...v, reposted: next }));
     setCounts((c) => ({ ...c, reposts: c.reposts + (next ? 1 : -1) }));
@@ -149,6 +161,8 @@ export function PostCard({ post, onDeleted, subscribeRealtime, showThreadLine, i
     } catch {
       setViewer((v) => ({ ...v, reposted: !next }));
       toast('Could not repost', 'error');
+    } finally {
+      repostBusy.current = false;
     }
   }
 

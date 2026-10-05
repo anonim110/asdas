@@ -133,7 +133,7 @@ export async function forgotPassword(req: Request, res: Response) {
 }
 
 export async function resetPassword(req: Request, res: Response) {
-  await authService.resetPassword(req.body.identifier, req.body.code, req.body.password);
+  await authService.resetPassword(req.body.identifier, req.body.code, req.body.password, req.ip);
   res.json({ message: 'Password updated. Please sign in again.' });
 }
 

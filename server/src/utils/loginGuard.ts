@@ -1,10 +1,12 @@
 import { ApiError } from './apiError';
 
 /**
- * In-memory brute-force guard for password login, layered on top of the
- * IP-based express rate limiter. It tracks failures per (identifier + IP) so a
- * single attacker IP gets locked out on a given account without letting an
- * attacker lock a victim out from elsewhere.
+ * In-memory brute-force guard, layered on top of the IP-based express rate
+ * limiter. It tracks failures per (scope + identifier + IP) so a single
+ * attacker IP gets locked out on a given account without letting an
+ * attacker lock a victim out from elsewhere. The scope keeps independent
+ * lockout buckets for different flows (login vs. password-reset codes)
+ * that might otherwise share an identifier.
  *
  * Stateless across restarts (acceptable — a restart only resets counters) and
  * single-process; for a multi-instance deployment back this with Redis.
@@ -33,15 +35,15 @@ function sweep(now: number) {
   }
 }
 
-function keyFor(identifier: string, ip?: string | null) {
-  return `${identifier.trim().toLowerCase()}|${ip ?? 'unknown'}`;
+function keyFor(scope: string, identifier: string, ip?: string | null) {
+  return `${scope}|${identifier.trim().toLowerCase()}|${ip ?? 'unknown'}`;
 }
 
-// Throws 429 if the (identifier, ip) pair is currently locked out.
-export function assertLoginAllowed(identifier: string, ip?: string | null) {
+// Throws 429 if the (scope, identifier, ip) triple is currently locked out.
+export function assertLoginAllowed(identifier: string, ip?: string | null, scope = 'login') {
   const now = Date.now();
   sweep(now);
-  const entry = attempts.get(keyFor(identifier, ip));
+  const entry = attempts.get(keyFor(scope, identifier, ip));
   if (entry?.lockedUntil && entry.lockedUntil > now) {
     const mins = Math.ceil((entry.lockedUntil - now) / 60000);
     throw ApiError.tooManyRequests(
@@ -50,10 +52,10 @@ export function assertLoginAllowed(identifier: string, ip?: string | null) {
   }
 }
 
-// Records a failed attempt; locks the pair once the threshold is exceeded.
-export function recordLoginFailure(identifier: string, ip?: string | null) {
+// Records a failed attempt; locks the triple once the threshold is exceeded.
+export function recordLoginFailure(identifier: string, ip?: string | null, scope = 'login') {
   const now = Date.now();
-  const key = keyFor(identifier, ip);
+  const key = keyFor(scope, identifier, ip);
   const entry = attempts.get(key);
 
   if (!entry || now - entry.firstFailureAt > WINDOW_MS) {
@@ -66,7 +68,7 @@ export function recordLoginFailure(identifier: string, ip?: string | null) {
   }
 }
 
-// Clears the counter after a successful login.
-export function recordLoginSuccess(identifier: string, ip?: string | null) {
-  attempts.delete(keyFor(identifier, ip));
+// Clears the counter after a successful attempt.
+export function recordLoginSuccess(identifier: string, ip?: string | null, scope = 'login') {
+  attempts.delete(keyFor(scope, identifier, ip));
 }

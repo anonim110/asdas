@@ -38,6 +38,29 @@ export function initSockets(httpServer: HttpServer): Server {
     const joinedCommunities = new Set<string>();
     socket.join(userRoom(userId));
 
+    // Per-connection cache of block checks against other users, shared by
+    // dm:typing and the call relay below — both can fire many times a
+    // second (keystrokes, ICE candidates), so we don't want a DB round
+    // trip on every event. A block is rare to change mid-connection.
+    const blockCache = new Map<string, boolean>();
+    async function isBlockedWith(otherId: string): Promise<boolean> {
+      const cached = blockCache.get(otherId);
+      if (cached !== undefined) return cached;
+      const blocked = await prisma.block
+        .findFirst({
+          where: {
+            OR: [
+              { blockerId: userId, blockedId: otherId },
+              { blockerId: otherId, blockedId: userId },
+            ],
+          },
+        })
+        .catch(() => null);
+      const result = !!blocked;
+      blockCache.set(otherId, result);
+      return result;
+    }
+
     // Presence: announce online status on the first connection for this user.
     if (addConnection(userId)) {
       io.emit('presence:update', { userId, online: true });
@@ -92,22 +115,25 @@ export function initSockets(httpServer: HttpServer): Server {
     });
 
     // Typing indicator within a DM conversation.
-    socket.on('dm:typing', ({ toUserId }: { toUserId: string }) => {
-      if (typeof toUserId === 'string') {
-        io.to(userRoom(toUserId)).emit('dm:typing', { fromUserId: userId });
-      }
+    socket.on('dm:typing', async ({ toUserId }: { toUserId: string }) => {
+      if (typeof toUserId !== 'string') return;
+      if (await isBlockedWith(toUserId)) return;
+      io.to(userRoom(toUserId)).emit('dm:typing', { fromUserId: userId });
     });
 
     // ───────── 1:1 WebRTC calls: relay signalling between the two peers ─────────
     // The server never sees media; it only forwards SDP offers/answers and ICE
     // candidates between the caller and callee, tagging each with the sender id.
+    // call:invite already checks blocks before a call can start; every other
+    // relayed event re-checks too, so a block taken out mid-call (or a stale
+    // client replaying events) can't push signalling to someone who blocked you.
     const relayCall =
       (event: string) =>
-      (payload: { toUserId?: string } & Record<string, unknown>) => {
+      async (payload: { toUserId?: string } & Record<string, unknown>) => {
         const { toUserId, ...rest } = payload || {};
-        if (typeof toUserId === 'string') {
-          io.to(userRoom(toUserId)).emit(event, { fromUserId: userId, ...rest });
-        }
+        if (typeof toUserId !== 'string') return;
+        if (await isBlockedWith(toUserId)) return;
+        io.to(userRoom(toUserId)).emit(event, { fromUserId: userId, ...rest });
       };
 
     socket.on('call:invite', async ({ toUserId, callType }: { toUserId: string; callType: string }) => {

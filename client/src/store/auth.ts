@@ -1,7 +1,21 @@
 import { create } from 'zustand';
 import { api, setAccessToken, registerAuthHandlers } from '../lib/api';
 import { connectSocket, disconnectSocket } from '../lib/socket';
+import { queryClient } from '../lib/queryClient';
+import { DRAFT_KEY } from '../lib/draftStorage';
 import type { AuthUser } from '../types';
+
+// Clears anything cached on the client that belongs to the just-ended
+// session, so the next person using this device/browser never sees the
+// previous account's data (React Query cache, unsent post draft).
+function clearSessionData() {
+  queryClient.clear();
+  try {
+    localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    /* storage unavailable — nothing to clean up */
+  }
+}
 
 type Status = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -57,6 +71,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     }
     setAccessToken(null);
     disconnectSocket();
+    clearSessionData();
     set({ user: null, status: 'unauthenticated' });
   },
 
@@ -72,6 +87,7 @@ registerAuthHandlers({
   onAuthFailure: () => {
     setAccessToken(null);
     disconnectSocket();
+    clearSessionData();
     useAuth.setState({ user: null, status: 'unauthenticated' });
   },
 });

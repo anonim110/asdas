@@ -5,6 +5,7 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { requireAuth, optionalAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { upload } from '../middleware/upload';
+import { writeLimiter } from '../middleware/rateLimit';
 import { updateProfileSchema, profileTabQuerySchema, cursorQuerySchema } from '../validators/schemas';
 
 const router = Router();
@@ -29,13 +30,13 @@ router.get('/:username/posts', optionalAuth, validate({ query: profileTabQuerySc
 router.get('/:username/followers', optionalAuth, validate({ query: cursorQuerySchema }), asyncHandler(user.followers));
 router.get('/:username/following', optionalAuth, validate({ query: cursorQuerySchema }), asyncHandler(user.following));
 
-router.post('/:username/follow', requireAuth, asyncHandler(user.follow));
-router.delete('/:username/follow', requireAuth, asyncHandler(user.unfollow));
+router.post('/:username/follow', requireAuth, writeLimiter, asyncHandler(user.follow));
+router.delete('/:username/follow', requireAuth, writeLimiter, asyncHandler(user.unfollow));
 
-router.post('/:username/block', requireAuth, asyncHandler(user.block));
+router.post('/:username/block', requireAuth, writeLimiter, asyncHandler(user.block));
 router.delete('/:username/block', requireAuth, asyncHandler(user.unblock));
 
-router.post('/:username/mute', requireAuth, asyncHandler(user.mute));
+router.post('/:username/mute', requireAuth, writeLimiter, asyncHandler(user.mute));
 router.delete('/:username/mute', requireAuth, asyncHandler(user.unmute));
 
 export default router;

@@ -428,20 +428,31 @@ export async function requestPasswordReset(identifier: string) {
   return { code: deliverByEmail ? null : code };
 }
 
-export async function resetPassword(identifier: string, code: string, newPassword: string) {
+export async function resetPassword(identifier: string, code: string, newPassword: string, ip?: string | null) {
   const value = identifier.trim();
+  // Separate brute-force bucket from login: a 6-digit code has far fewer
+  // combinations than a password, so the shared per-IP rate limiter alone
+  // isn't enough — this locks out an (identifier, IP) pair after repeated
+  // wrong codes, same as the login guard.
+  assertLoginAllowed(value, ip, 'reset');
+
   const user = await prisma.user.findFirst({
     where: { OR: [{ email: value.toLowerCase() }, { username: value }] },
     select: { id: true },
   });
-  if (!user) throw ApiError.badRequest('Invalid or expired reset code');
+  if (!user) {
+    recordLoginFailure(value, ip, 'reset');
+    throw ApiError.badRequest('Invalid or expired reset code');
+  }
 
   const tokenHash = resetCodeHash(user.id, code);
   const record = await prisma.passwordResetToken.findUnique({ where: { tokenHash } });
   if (!record || record.usedAt || record.expiresAt < new Date()) {
+    recordLoginFailure(value, ip, 'reset');
     throw ApiError.badRequest('Invalid or expired reset code');
   }
 
+  recordLoginSuccess(value, ip, 'reset');
   const passwordHash = await hashPassword(newPassword);
   await prisma.$transaction([
     prisma.user.update({ where: { id: record.userId }, data: { passwordHash } }),

@@ -12,7 +12,7 @@ function normalizeOrigin(value: string): string {
 // empty/whitespace value is treated as "not set" so the desktop build can
 // override the web .env with a blank VITE_API_URL.
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
-const API_ORIGIN = normalizeOrigin(
+export const API_ORIGIN = normalizeOrigin(
   configuredApiUrl
     ? configuredApiUrl
     : import.meta.env.PROD
@@ -106,5 +106,3 @@ export function errorMessage(err: unknown, fallback = 'Something went wrong'): s
   }
   return fallback;
 }
-
-export { API_ORIGIN };

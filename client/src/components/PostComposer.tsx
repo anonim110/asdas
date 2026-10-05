@@ -9,11 +9,11 @@ import { Avatar } from './Avatar';
 import { ProgressRing } from './ProgressRing';
 import { EmojiPicker } from './EmojiPicker';
 import { MentionAutocomplete, detectToken, type ActiveToken, type Suggestion } from './MentionAutocomplete';
+import { DRAFT_KEY } from '../lib/draftStorage';
 import type { Post } from '../types';
 
 const MAX = 280;
 const MAX_FILES = 4;
-const DRAFT_KEY = 'murmur:composer-draft';
 
 interface Props {
   placeholder?: string;

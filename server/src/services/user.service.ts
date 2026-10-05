@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { ApiError } from '../utils/apiError';
 import { authorSelect } from './serializers';
@@ -97,11 +98,16 @@ export async function followUser(followerId: string, username: string) {
   });
   if (blocked) throw ApiError.forbidden('Cannot follow a blocked user');
 
-  await prisma.follow.upsert({
-    where: { followerId_followingId: { followerId, followingId: target.id } },
-    create: { followerId, followingId: target.id },
-    update: {},
-  });
+  // Atomic create (not upsert) so a duplicate follow — repeated clicks,
+  // retries — skips the notification instead of re-sending it every time.
+  try {
+    await prisma.follow.create({ data: { followerId, followingId: target.id } });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      return getFollowCounts(target.id);
+    }
+    throw err;
+  }
   await createNotification({ type: 'FOLLOW', recipientId: target.id, actorId: followerId });
   return getFollowCounts(target.id);
 }
